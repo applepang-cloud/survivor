@@ -21,6 +21,47 @@ const Map<WeaponType, String> kWeaponName = {
   WeaponType.lightning: '번개',
 };
 
+const Map<WeaponType, String> kWeaponDesc = {
+  WeaponType.arrow: '가장 가까운 적을 관통',
+  WeaponType.whip: '좌우로 넓게 휘두른다',
+  WeaponType.sword: '이동 방향으로 던진다',
+  WeaponType.shield: '주위를 회전하며 보호',
+  WeaponType.fireball: '적을 향해 날아간다',
+  WeaponType.lightning: '무작위 적을 강타',
+};
+
+const int kMaxWeaponLevel = 8;
+
+/// 무기 레벨별 능력치 (레벨업 선택지로 강화)
+class WStats {
+  final double damage;
+  final double cooldown; // 초
+  final double scale;
+  final int count;
+  const WStats(this.damage, this.cooldown, this.scale, this.count);
+}
+
+WStats weaponStats(WeaponType t, int lvl) {
+  final l = lvl - 1; // 0부터
+  double clamp(double v, double lo) => v < lo ? lo : v;
+  switch (t) {
+    case WeaponType.arrow:
+      return WStats(10 + l * 6, clamp(1.0 - l * 0.1, 0.2), 1.5, 1 + l ~/ 2);
+    case WeaponType.sword:
+      return WStats(10 + l * 6, clamp(0.5 - l * 0.05, 0.12), 1.8, 1 + l ~/ 2);
+    case WeaponType.whip:
+      return WStats(
+          10 + l * 8, clamp(1.0 - l * 0.08, 0.4), 1.5 + l * 0.2, 1 + l ~/ 3);
+    case WeaponType.fireball:
+      return WStats(
+          20 + l * 10, clamp(1.0 - l * 0.08, 0.4), 0.25 + l * 0.03, 1 + l ~/ 3);
+    case WeaponType.lightning:
+      return WStats(10 + l * 7, clamp(1.0 - l * 0.08, 0.4), 1.0, 1 + l ~/ 2);
+    case WeaponType.shield:
+      return WStats(10 + l * 5, 0, 2.0, lvl); // 방패 개수 = 레벨
+  }
+}
+
 /// 몹 종류별 설정 (원작 PlayingScene/Mob/ExpUp 수치 그대로)
 class MobConfig {
   final String key; // 텍스처 키 = 애니메이션 키

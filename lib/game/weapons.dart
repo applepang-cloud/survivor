@@ -11,12 +11,13 @@ import 'mob.dart';
 
 class Arrow extends SpriteComponent
     with HasGameReference<SurvivorGame>, CollisionCallbacks {
-  Arrow(Vector2 pos, this.damage, double sc)
+  Arrow(Vector2 pos, this.damage, double sc, {this.spread = 0})
       : super(
             position: pos.clone(),
             anchor: Anchor.center,
             size: Vector2(16, 16) * sc);
   final double damage;
+  final double spread;
   double _life = 1.5;
   late Vector2 _vel;
 
@@ -32,6 +33,10 @@ class Arrow extends SpriteComponent
       final root = math.sqrt(dx * dx + dy * dy) / 2;
       _vel = Vector2((dx / root) * 250, (dy / root) * 250 + 30);
       angle = math.atan2(dy, dx) + math.pi / 2 + math.pi / 4;
+    }
+    if (spread != 0) {
+      _vel.rotate(spread);
+      angle += spread;
     }
     add(RectangleHitbox());
   }
@@ -56,12 +61,13 @@ class Arrow extends SpriteComponent
 
 class Sword extends SpriteComponent
     with HasGameReference<SurvivorGame>, CollisionCallbacks {
-  Sword(Vector2 pos, this.damage, double sc)
+  Sword(Vector2 pos, this.damage, double sc, {this.spread = 0})
       : super(
             position: pos.clone(),
             anchor: Anchor.center,
             size: Vector2(16, 16) * sc);
   final double damage;
+  final double spread;
   double _life = 1.5;
   late Vector2 _vel;
 
@@ -71,7 +77,7 @@ class Sword extends SpriteComponent
     final dir = game.lastMoveDir.length2 > 0.001
         ? game.lastMoveDir.normalized()
         : Vector2(game.player.facing.toDouble(), 0);
-    _vel = dir * 500; // 원작 250 * SPEED(2)
+    _vel = (dir * 500)..rotate(spread); // 원작 250 * SPEED(2)
     angle = math.pi / 2 + math.pi / 4;
     add(RectangleHitbox());
   }

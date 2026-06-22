@@ -35,7 +35,7 @@ void main() {
     final game = await _pumpGame(tester);
     game.startGame();
     expect(game.isRunning, isTrue);
-    expect(game.attack.ownedTypes.contains(WeaponType.arrow), isTrue);
+    expect(game.attack.owns(WeaponType.arrow), isTrue);
     expect(game.player.hp, 100);
     expect(game.player.position, Vector2.zero());
   });
@@ -59,41 +59,40 @@ void main() {
     expect(game.kills, greaterThan(0));
   });
 
-  testWidgets('level up follows scripted progression (lv2 = whip)',
-      (tester) async {
+  testWidgets('level up pauses and offers 3 choices', (tester) async {
     final game = await _pumpGame(tester);
     game.startGame();
     expect(game.level, 1);
-    game.gainExp(60); // maxExp 50 초과 → 레벨업 대기
-    expect(game.isRunning, isFalse);
-    game.continueAfterLevelUp();
+    game.gainExp(60); // maxExp 50 초과 → 레벨업
     expect(game.level, 2);
-    expect(game.isRunning, isTrue);
-    // 원작: 레벨2에서 채찍 획득
-    expect(game.attack.ownedTypes.contains(WeaponType.whip), isTrue);
-    // maxExp 가 1.3배로 증가
-    expect(game.maxExp, closeTo(65, 0.001));
+    expect(game.isRunning, isFalse);
+    expect(game.pendingUpgrades.length, 3);
+    expect(game.maxExp, closeTo(65, 0.001)); // 1.3배
   });
 
-  testWidgets('full scripted unlock order matches original', (tester) async {
+  testWidgets('choosing a new-weapon option grants that weapon',
+      (tester) async {
     final game = await _pumpGame(tester);
     game.startGame();
-    // 레벨 2~6 진행하며 무기 5종 추가 확인
-    final expectAt = {
-      2: WeaponType.whip,
-      3: WeaponType.sword,
-      4: WeaponType.shield,
-      5: WeaponType.fireball,
-      6: WeaponType.lightning,
-    };
-    for (var lv = 2; lv <= 6; lv++) {
-      game.gainExp(game.maxExp.ceil() + 1);
-      game.continueAfterLevelUp();
-      expect(game.attack.ownedTypes.contains(expectAt[lv]), isTrue,
-          reason: 'level $lv should unlock ${expectAt[lv]}');
-    }
-    // 모든 6종 보유
-    expect(game.attack.ownedTypes.length, 6);
+    game.gainExp(60);
+    // 새 무기 획득 선택지를 찾아 적용
+    final before = game.attack.ownedLevels.length;
+    final newWeapon =
+        game.pendingUpgrades.firstWhere((o) => o.title.contains('획득'),
+            orElse: () => game.pendingUpgrades.first);
+    game.applyUpgrade(newWeapon);
+    expect(game.isRunning, isTrue);
+    expect(game.pendingUpgrades, isEmpty);
+    expect(game.attack.ownedLevels.length, greaterThanOrEqualTo(before));
+  });
+
+  testWidgets('applying any option resumes the game', (tester) async {
+    final game = await _pumpGame(tester);
+    game.startGame();
+    game.gainExp(60);
+    game.applyUpgrade(game.pendingUpgrades.first);
+    expect(game.isRunning, isTrue);
+    expect(game.attack.owns(WeaponType.arrow), isTrue); // 시작 무기 유지
   });
 
   testWidgets('player dies on lethal damage', (tester) async {

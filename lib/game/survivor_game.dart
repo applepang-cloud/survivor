@@ -22,8 +22,7 @@ class GameStats {
   final double hp, maxHp;
   final int level, kills;
   final double exp, maxExp, time;
-  final Set<WeaponType> weapons;
-  final int shieldCount;
+  final Map<WeaponType, int> weapons; // 보유 무기 → 레벨
   GameStats({
     required this.hp,
     required this.maxHp,
@@ -33,8 +32,17 @@ class GameStats {
     required this.maxExp,
     required this.time,
     required this.weapons,
-    required this.shieldCount,
   });
+}
+
+/// 레벨업 시 3개 중 1개를 고르는 선택지
+class UpgradeOption {
+  final String title;
+  final String desc;
+  final String emoji;
+  final Color color;
+  final void Function() apply;
+  UpgradeOption(this.title, this.desc, this.emoji, this.color, this.apply);
 }
 
 class SurvivorGame extends FlameGame
@@ -59,13 +67,15 @@ class SurvivorGame extends FlameGame
   int kills = 0;
   int level = 1;
   double exp = 0;
-  double maxExp = 50; // 원작 ExpBar 초기 50, 레벨업마다 ×1.3
-  double _overflow = 0;
+  double maxExp = 50; // 초기 50, 레벨업마다 ×1.3
   bool isRunning = false;
   bool _leveling = false;
 
+  double damageMult = 1.0; // 패시브 공격력 강화
   double shieldAngle = 0.05;
   Vector2 lastMoveDir = Vector2(1, 0);
+
+  List<UpgradeOption> pendingUpgrades = [];
 
   final Set<LogicalKeyboardKey> _keys = {};
 
@@ -77,8 +87,7 @@ class SurvivorGame extends FlameGame
     exp: 0,
     maxExp: 50,
     time: 0,
-    weapons: {WeaponType.arrow},
-    shieldCount: 0,
+    weapons: {WeaponType.arrow: 1},
   ));
   int finalTime = 0, finalLevel = 1, finalKills = 0;
 
@@ -156,6 +165,8 @@ class SurvivorGame extends FlameGame
     player.position = Vector2.zero();
     player.maxHp = 100;
     player.hp = 100;
+    player.speed = 180;
+    player.pickupRadius = 60;
     player.paint.colorFilter = null;
 
     elapsed = 0;
@@ -163,8 +174,9 @@ class SurvivorGame extends FlameGame
     level = 1;
     exp = 0;
     maxExp = 50;
-    _overflow = 0;
     _leveling = false;
+    damageMult = 1.0;
+    pendingUpgrades = [];
     shieldAngle = 0.05;
     lastMoveDir = Vector2(1, 0);
 
@@ -221,29 +233,72 @@ class SurvivorGame extends FlameGame
   void gainExp(int amount) {
     if (_leveling) return;
     exp += amount;
-    if (exp >= maxExp) {
-      _overflow = exp - maxExp;
-      _leveling = true;
-      isRunning = false;
-      audio.levelup();
-      _updateHud();
-      pauseEngine();
-      overlays.add('levelup');
-    }
+    if (exp >= maxExp) _levelUp();
   }
 
-  /// 레벨업 화면에서 "계속"을 누르면 호출 (원작 afterLevelUp)
-  void continueAfterLevelUp() {
+  void _levelUp() {
     level++;
+    exp -= maxExp;
     maxExp *= 1.3;
-    exp = _overflow;
-    _overflow = 0;
-    attack.afterLevelUp(level);
+    pendingUpgrades = _buildOptions();
+    _leveling = true;
+    isRunning = false;
+    audio.levelup();
+    _updateHud();
+    pauseEngine();
+    overlays.add('levelup');
+  }
+
+  /// 레벨업 화면에서 3개 중 하나를 고르면 호출
+  void applyUpgrade(UpgradeOption option) {
+    option.apply();
+    pendingUpgrades = [];
     _leveling = false;
     overlays.remove('levelup');
     isRunning = true;
     _updateHud();
     resumeEngine();
+    // 남은 경험치로 또 레벨업 가능하면 연속 처리
+    if (exp >= maxExp) _levelUp();
+  }
+
+  List<UpgradeOption> _buildOptions() {
+    final pool = <UpgradeOption>[];
+    const gold = Color(0xFFFFD54F);
+
+    // 보유 무기 강화
+    for (final t in attack.levels.keys) {
+      if (attack.levelOf(t) < kMaxWeaponLevel) {
+        final lv = attack.levelOf(t) + 1;
+        pool.add(UpgradeOption('${kWeaponName[t]} Lv.$lv', kWeaponDesc[t]!,
+            kWeaponEmoji[t]!, gold, () => attack.upgrade(t)));
+      }
+    }
+    // 새 무기 획득
+    for (final t in WeaponType.values) {
+      if (!attack.owns(t)) {
+        pool.add(UpgradeOption('${kWeaponName[t]} 획득!', kWeaponDesc[t]!,
+            kWeaponEmoji[t]!, const Color(0xFF4FC3F7), () => attack.addWeapon(t)));
+      }
+    }
+    // 패시브 (항상 선택 가능)
+    final passives = <UpgradeOption>[
+      UpgradeOption('체력 회복', 'HP를 40 회복', '❤️', const Color(0xFFEF5350),
+          () => player.heal(40)),
+      UpgradeOption('최대 체력 +25', '튼튼해진다', '🛡️', const Color(0xFF66BB6A), () {
+        player.maxHp += 25;
+        player.heal(25);
+      }),
+      UpgradeOption('이동 속도 +10%', '더 빠르게', '👟', const Color(0xFF29B6F6),
+          () => player.speed *= 1.10),
+      UpgradeOption('획득 범위 +30', '경험치를 멀리서 흡수', '🧲',
+          const Color(0xFFAB47BC), () => player.pickupRadius += 30),
+      UpgradeOption('공격력 +15%', '모든 무기 강화', '💥', const Color(0xFFFF7043),
+          () => damageMult *= 1.15),
+    ];
+
+    final all = [...pool, ...passives]..shuffle(rng);
+    return all.take(3).toList();
   }
 
   void gameOver() {
@@ -272,8 +327,7 @@ class SurvivorGame extends FlameGame
       exp: exp,
       maxExp: maxExp,
       time: elapsed,
-      weapons: attack.ownedTypes,
-      shieldCount: attack.shieldCount,
+      weapons: attack.ownedLevels,
     );
   }
 }

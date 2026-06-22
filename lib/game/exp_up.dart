@@ -31,11 +31,14 @@ class ExpUp extends SpriteComponent
   @override
   void update(double dt) {
     super.update(dt);
-    if (magnetized) {
-      final dir = game.player.position - position;
-      if (dir.length2 > 1) {
-        dir.normalize();
-        position += dir * 1000 * dt;
+    final toPlayer = game.player.position - position;
+    final dist = toPlayer.length;
+    // 자석 아이템(전체) 또는 흡수 범위 안이면 끌려온다
+    if (magnetized || dist < game.player.pickupRadius) {
+      if (dist > 1) {
+        toPlayer.normalize();
+        final speed = magnetized ? 1000.0 : 320.0;
+        position += toPlayer * speed * dt;
       }
     }
   }

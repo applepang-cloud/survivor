@@ -10,9 +10,10 @@ class Player extends SpriteAnimationComponent
   Player()
       : super(size: Vector2(80, 80) * 1.3, anchor: Anchor.center);
 
-  static const double speed = 180; // 원작 3px/frame ≈ 180/s
+  double speed = 180; // 원작 3px/frame ≈ 180/s, 패시브로 증가
   double maxHp = 100;
   late double hp = maxHp;
+  double pickupRadius = 60; // 경험치 흡수 반경 (패시브로 증가)
 
   double _invuln = 0;
   int facing = 1; // 1 오른쪽, -1 왼쪽

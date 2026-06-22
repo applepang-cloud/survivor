@@ -94,12 +94,10 @@ class HudOverlay extends StatelessWidget {
                   const Spacer(),
                   Wrap(
                     spacing: 6,
+                    runSpacing: 6,
                     children: [
-                      for (final w in st.weapons)
-                        _badge(kWeaponEmoji[w]!,
-                            w == WeaponType.shield && st.shieldCount > 1
-                                ? '×${st.shieldCount}'
-                                : null),
+                      for (final e in st.weapons.entries)
+                        _badge(kWeaponEmoji[e.key]!, 'Lv${e.value}'),
                     ],
                   ),
                   const SizedBox(height: 96),
@@ -127,10 +125,14 @@ class HudOverlay extends StatelessWidget {
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Text(emoji, style: const TextStyle(fontSize: 18)),
-        if (sub != null)
+        if (sub != null) ...[
+          const SizedBox(width: 3),
           Text(sub,
               style: const TextStyle(
-                  color: Colors.white, fontWeight: FontWeight.bold)),
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold)),
+        ],
       ]),
     );
   }
