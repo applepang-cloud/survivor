@@ -1,5 +1,7 @@
 import 'package:flame/game.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'game/survivor_game.dart';
 import 'ui/bitmap_font.dart';
@@ -13,6 +15,14 @@ import 'overlays/sound_button.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (!kIsWeb) {
+    // 모바일: 가로 고정 + 몰입 전체화면
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  }
   await BitmapFont.ensureLoaded();
   runApp(const SurvivorApp());
 }
