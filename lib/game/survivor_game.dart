@@ -95,6 +95,9 @@ class SurvivorGame extends FlameGame
   List<String> chestLines = [];
   bool reaperWarned = false;
 
+  // ESC 일시정지 (원작 pauseManager)
+  bool escPaused = false;
+
   double shieldAngle = 0.05;
   Vector2 lastMoveDir = Vector2(1, 0);
 
@@ -156,7 +159,45 @@ class SurvivorGame extends FlameGame
     _keys
       ..clear()
       ..addAll(keys);
+    // ESC: 일시정지 토글 (원작: ESC로 정지/해제)
+    if (e is KeyDownEvent && e.logicalKey == LogicalKeyboardKey.escape) {
+      togglePause();
+    }
     return KeyEventResult.handled;
+  }
+
+  /// ESC 일시정지 토글 — 레벨업/상자/게임오버/메뉴 중에는 무시
+  void togglePause() {
+    if (overlays.isActive('levelup') ||
+        overlays.isActive('chest') ||
+        overlays.isActive('gameover') ||
+        overlays.isActive('menu')) {
+      return;
+    }
+    if (!escPaused && isRunning) {
+      escPaused = true;
+      isRunning = false;
+      audio.pauseBgm();
+      pauseEngine();
+      overlays.add('pause');
+    } else if (escPaused) {
+      escPaused = false;
+      overlays.remove('pause');
+      isRunning = true;
+      audio.resumeBgm();
+      resumeEngine();
+    }
+  }
+
+  /// 일시정지 화면에서 메뉴로 나가기
+  void quitToMenu() {
+    escPaused = false;
+    overlays.remove('pause');
+    audio.stopBgm();
+    if (joystick.isMounted) joystick.removeFromParent();
+    isRunning = false;
+    overlays.add('menu');
+    resumeEngine();
   }
 
   Vector2 inputDirection() {
@@ -228,6 +269,7 @@ class SurvivorGame extends FlameGame
     lastChestAt = -999;
     chestLines = [];
     reaperWarned = false;
+    escPaused = false;
     pendingUpgrades = [];
     shieldAngle = 0.05;
     lastMoveDir = Vector2(1, 0);
@@ -239,8 +281,10 @@ class SurvivorGame extends FlameGame
     overlays.remove('gameover');
     overlays.remove('levelup');
     overlays.remove('chest');
+    overlays.remove('pause');
     if (!joystick.isMounted) camera.viewport.add(joystick);
     isRunning = true;
+    audio.startBgm();
     resumeEngine();
   }
 
@@ -466,6 +510,7 @@ class SurvivorGame extends FlameGame
 
   void gameOver() {
     isRunning = false;
+    audio.stopBgm();
     audio.gameover();
     finalTime = elapsed.floor();
     finalLevel = level;

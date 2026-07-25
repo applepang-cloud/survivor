@@ -20,6 +20,7 @@ Future<SurvivorGame> _pumpGame(WidgetTester tester) async {
           'levelup': (_, _) => const SizedBox.shrink(),
           'gameover': (_, _) => const SizedBox.shrink(),
           'chest': (_, _) => const SizedBox.shrink(),
+          'pause': (_, _) => const SizedBox.shrink(),
         },
       ),
     );
@@ -152,6 +153,36 @@ void main() {
     expect(game.isRunning, isFalse);
     game.closeChest();
     expect(game.isRunning, isTrue);
+  });
+
+  testWidgets('ESC pause toggles and quit returns to menu', (tester) async {
+    final game = await _pumpGame(tester);
+    game.startGame();
+    expect(game.isRunning, isTrue);
+
+    game.togglePause();
+    expect(game.escPaused, isTrue);
+    expect(game.isRunning, isFalse);
+    expect(game.overlays.isActive('pause'), isTrue);
+
+    game.togglePause();
+    expect(game.escPaused, isFalse);
+    expect(game.isRunning, isTrue);
+    expect(game.overlays.isActive('pause'), isFalse);
+
+    // 레벨업 중에는 ESC 무시
+    game.gainExp(60);
+    expect(game.isRunning, isFalse);
+    game.togglePause();
+    expect(game.escPaused, isFalse);
+    game.applyUpgrade(game.pendingUpgrades.first);
+
+    // 일시정지 → 메뉴로
+    game.togglePause();
+    game.quitToMenu();
+    expect(game.isRunning, isFalse);
+    expect(game.overlays.isActive('menu'), isTrue);
+    expect(game.overlays.isActive('pause'), isFalse);
   });
 
   testWidgets('player dies on lethal damage', (tester) async {

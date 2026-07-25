@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../game/survivor_game.dart';
 
-/// 우측 상단 음소거 토글 버튼 (항상 표시).
+/// 우하단 컨트롤 — 일시정지(⏸) + 음소거 토글 (모바일 대응)
 class SoundButton extends StatefulWidget {
   const SoundButton({super.key, required this.game});
   final SurvivorGame game;
@@ -20,21 +20,37 @@ class _SoundButtonState extends State<SoundButton> {
         alignment: Alignment.bottomRight,
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Material(
-            color: Colors.black54,
-            shape: const CircleBorder(),
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              onTap: () {
-                setState(() => widget.game.audio.enabled = !on);
-              },
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: Icon(on ? Icons.volume_up : Icons.volume_off,
-                    color: Colors.white, size: 22),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _round(
+                icon: Icons.pause,
+                onTap: widget.game.togglePause,
               ),
-            ),
+              const SizedBox(width: 8),
+              _round(
+                icon: on ? Icons.volume_up : Icons.volume_off,
+                onTap: () {
+                  setState(() => widget.game.audio.setEnabled(!on));
+                },
+              ),
+            ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _round({required IconData icon, required VoidCallback onTap}) {
+    return Material(
+      color: Colors.black54,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Icon(icon, color: Colors.white, size: 22),
         ),
       ),
     );
