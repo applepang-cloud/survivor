@@ -18,7 +18,45 @@ class HudOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IgnorePointer(
-      child: ValueListenableBuilder<GameStats>(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          _mainHud(),
+          // 중앙 경고 배너 (사신 예고 / 포위 이벤트)
+          Align(
+            alignment: const Alignment(0, -0.35),
+            child: ValueListenableBuilder<String?>(
+              valueListenable: game.banner,
+              builder: (context, text, _) {
+                if (text == null) return const SizedBox.shrink();
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 22, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.65),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: const Color(0xFFEF5350), width: 2),
+                  ),
+                  child: Text(text,
+                      style: const TextStyle(
+                          color: Color(0xFFFF8A80),
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          shadows: [
+                            Shadow(color: Colors.black, blurRadius: 6)
+                          ])),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _mainHud() {
+    return ValueListenableBuilder<GameStats>(
         valueListenable: game.hud,
         builder: (context, st, _) {
           return SafeArea(
@@ -127,9 +165,7 @@ class HudOverlay extends StatelessWidget {
               ),
             ),
           );
-        },
-      ),
-    );
+        });
   }
 
   Widget _label(String text, {double size = 16}) {

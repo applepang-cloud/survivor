@@ -19,20 +19,28 @@ class Mob extends SpriteAnimationComponent
     required this.itemDropRate,
     double hpMult = 1.0,
     this.isReaper = false,
+    this.chargeDir, // 스웜: 고정 방향 직진 (추적 안 함)
+    this.lifespan, // 수명(초) — 지나면 조용히 소멸 (스웜/포위 이벤트용)
+    double? hpOverride,
+    double? speedOverride,
+    double? damageOverride,
   }) : super(
           position: position,
           size: config.displaySize * (isReaper ? 1.3 : 1.0),
           anchor: Anchor.center,
         ) {
-    hp = config.hp * hpMult * (isReaper ? 99999 : 1);
-    speed = isReaper ? 120 : config.speed;
-    contactDamage = isReaper ? 99999 : config.contactDamage;
+    hp = hpOverride ?? config.hp * hpMult * (isReaper ? 99999 : 1);
+    speed = speedOverride ?? (isReaper ? 120 : config.speed);
+    contactDamage =
+        damageOverride ?? (isReaper ? 99999 : config.contactDamage);
   }
 
   final MobConfig config;
   final double expDropRate;
   final double itemDropRate;
   final bool isReaper; // 사신: 사실상 불사, 즉사급 접촉 피해
+  final Vector2? chargeDir;
+  double? lifespan;
   late double hp;
   late double speed;
   late double contactDamage;
@@ -70,8 +78,25 @@ class Mob extends SpriteAnimationComponent
     }
     if (frozen && !isReaper) return;
 
+    // 수명 만료 → 조용히 소멸 (킬 카운트/드랍 없음)
+    if (lifespan != null) {
+      lifespan = lifespan! - dt;
+      if (lifespan! <= 0) {
+        removeFromParent();
+        return;
+      }
+    }
+
+    // 스웜(돌격형): 플레이어 추적 없이 고정 방향 직진
+    if (chargeDir != null) {
+      position += chargeDir! * speed * dt;
+      flipHorizontally2(chargeDir!.x < 0);
+      if (hp <= 0) die();
+      return;
+    }
+
     // 너무 멀어진 몹은 스폰 링으로 재배치 (VS의 몹 리포지셔닝)
-    if (!isReaper) {
+    if (!isReaper && lifespan == null) {
       final distSq = position.distanceToSquared(game.player.position);
       final ring = game.spawner.spawnRadius;
       if (distSq > ring * ring * 2.6) {
@@ -157,9 +182,10 @@ class Mob extends SpriteAnimationComponent
           .add(ItemDrop(mobPosition: position, isBoss: config.key == 'mobBoss'));
     }
     final isBoss = config.key == 'mobBoss';
-    if (isBoss) {
+    if (isBoss && !isReaper) {
       // 보스: 보물상자(쿨다운) 또는 금화 다발 (VS: 보스는 보물상자 드랍)
-      if (game.elapsed - game.lastChestAt > 40) {
+      // 진화 게이트: 4분 이후 보스부터 상자 개방 (VS의 10분 상자 게이트 압축)
+      if (game.elapsed >= 240 && game.elapsed - game.lastChestAt > 40) {
         game.lastChestAt = game.elapsed;
         game.world.add(TreasureChest(position: position.clone()));
       } else {

@@ -6,6 +6,7 @@ import 'package:survivor/game/survivor_game.dart';
 import 'package:survivor/game/data.dart';
 import 'package:survivor/game/stats.dart';
 import 'package:survivor/game/mob.dart';
+import 'package:survivor/game/fx.dart';
 
 Future<SurvivorGame> _pumpGame(WidgetTester tester) async {
   final game = SurvivorGame();
@@ -183,6 +184,89 @@ void main() {
     expect(game.isRunning, isFalse);
     expect(game.overlays.isActive('menu'), isTrue);
     expect(game.overlays.isActive('pause'), isFalse);
+  });
+
+  testWidgets('swarm rush spawns charging candy mobs', (tester) async {
+    final game = await _pumpGame(tester);
+    game.startGame();
+    game.spawner.spawnSwarm();
+    await tester.pump(const Duration(milliseconds: 16));
+    await tester.pump(const Duration(milliseconds: 16));
+    final swarm = game.world.children
+        .whereType<Mob>()
+        .where((m) => m.chargeDir != null)
+        .toList();
+    expect(swarm.length, greaterThanOrEqualTo(50));
+    expect(swarm.first.hp, 1); // 체력 1 사탕
+    expect(swarm.first.contactDamage, lessThan(10)); // 접촉 피해 약함
+  });
+
+  testWidgets('encirclement ring spawns tanky slow wall + banner',
+      (tester) async {
+    final game = await _pumpGame(tester);
+    game.startGame();
+    game.spawner.spawnRing();
+    await tester.pump(const Duration(milliseconds: 16));
+    await tester.pump(const Duration(milliseconds: 16));
+    final ring = game.world.children
+        .whereType<Mob>()
+        .where((m) => m.lifespan != null && m.chargeDir == null)
+        .toList();
+    expect(ring.length, 26);
+    expect(ring.first.speed, lessThan(30)); // 저속
+    expect(game.banner.value, isNotNull); // 경고 배너
+  });
+
+  testWidgets('evolution chest gated until 4:00', (tester) async {
+    final game = await _pumpGame(tester);
+    game.startGame();
+
+    Future<void> killBossAt(double elapsed) async {
+      game.elapsed = elapsed;
+      final boss = Mob(
+          config: kMobs['mobBoss']!,
+          position: Vector2(150, 0),
+          expDropRate: 0,
+          itemDropRate: 0);
+      game.world.add(boss);
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump(const Duration(milliseconds: 16));
+      boss.takeDamage(9999999);
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+
+    // 4분 전: 상자 없음 (금화만)
+    await killBossAt(100);
+    expect(game.world.children.whereType<TreasureChest>().length, 0);
+
+    // 4분 후: 상자 드랍
+    await killBossAt(300);
+    expect(game.world.children.whereType<TreasureChest>().length, 1);
+  });
+
+  testWidgets('reaper warning at 9:50 and +1 reaper per minute',
+      (tester) async {
+    final game = await _pumpGame(tester);
+    game.startGame();
+
+    game.elapsed = 599.5;
+    for (var i = 0; i < 40; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(game.reaperWarned, isTrue);
+    expect(game.spawner.reaperCount, 1);
+
+    game.elapsed = 659.5;
+    for (var i = 0; i < 40; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(game.spawner.reaperCount, 2);
+    expect(
+        game.world.children
+            .whereType<Mob>()
+            .where((m) => m.isReaper)
+            .length,
+        2);
   });
 
   testWidgets('player dies on lethal damage', (tester) async {

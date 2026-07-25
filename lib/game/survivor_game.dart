@@ -105,6 +105,9 @@ class SurvivorGame extends FlameGame
 
   final Set<LogicalKeyboardKey> _keys = {};
 
+  /// 화면 중앙 경고 배너 (사신 예고, 포위 등)
+  final ValueNotifier<String?> banner = ValueNotifier(null);
+
   final ValueNotifier<GameStats> hud = ValueNotifier(GameStats(
     hp: 100,
     maxHp: 100,
@@ -269,6 +272,7 @@ class SurvivorGame extends FlameGame
     lastChestAt = -999;
     chestLines = [];
     reaperWarned = false;
+    banner.value = null;
     escPaused = false;
     pendingUpgrades = [];
     shieldAngle = 0.05;
@@ -321,6 +325,17 @@ class SurvivorGame extends FlameGame
 
   // ---- 콜백 ----
   void onMobKilled() => kills++;
+
+  void showBanner(String text, [double seconds = 3.5]) {
+    banner.value = text;
+    add(TimerComponent(
+        period: seconds,
+        repeat: false,
+        removeOnFinish: true,
+        onTick: () {
+          if (banner.value == text) banner.value = null;
+        }));
+  }
 
   void gainGold(int amount) {
     gold += amount;
