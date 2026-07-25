@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../game/survivor_game.dart';
 import '../game/data.dart';
+import '../game/stats.dart';
 import '../ui/bitmap_font.dart';
 
 class HudOverlay extends StatelessWidget {
@@ -26,7 +27,7 @@ class HudOverlay extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // 경험치 바 (원작 상단 전체폭, 파란색 0x677ced)
+                  // 경험치 바 (원작 상단 전체폭)
                   Container(
                     height: 16,
                     decoration: BoxDecoration(
@@ -47,7 +48,11 @@ class HudOverlay extends StatelessWidget {
                     children: [
                       _label('KILLED ${st.kills.toString().padLeft(6, '0')}'),
                       _label(_fmt(st.time), size: 22),
-                      _label('LVL ${st.level.toString().padLeft(3, '0')}'),
+                      Row(children: [
+                        _label('GOLD ${st.gold}'),
+                        const SizedBox(width: 10),
+                        _label('LVL ${st.level.toString().padLeft(3, '0')}'),
+                      ]),
                     ],
                   ),
                   const SizedBox(height: 6),
@@ -91,15 +96,32 @@ class HudOverlay extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const Spacer(),
+                  const SizedBox(height: 4),
+                  // 인벤토리: 무기 줄 + 장신구 줄 (VS 좌상단 인벤토리)
                   Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
+                    spacing: 5,
+                    runSpacing: 4,
                     children: [
                       for (final e in st.weapons.entries)
-                        _badge(kWeaponEmoji[e.key]!, 'Lv${e.value}'),
+                        _badge(
+                          st.evolved.contains(e.key)
+                              ? kEvolutions[e.key]!.emoji
+                              : kWeaponEmoji[e.key]!,
+                          st.evolved.contains(e.key) ? 'MAX' : 'Lv${e.value}',
+                          gold: st.evolved.contains(e.key),
+                        ),
                     ],
                   ),
+                  const SizedBox(height: 3),
+                  Wrap(
+                    spacing: 5,
+                    runSpacing: 4,
+                    children: [
+                      for (final e in st.passives.entries)
+                        _badge(kPassives[e.key]!.emoji, 'Lv${e.value}'),
+                    ],
+                  ),
+                  const Spacer(),
                   const SizedBox(height: 96),
                 ],
               ),
@@ -115,22 +137,24 @@ class HudOverlay extends StatelessWidget {
     return BitmapText(text, scale: size / 22, color: Colors.white);
   }
 
-  Widget _badge(String emoji, String? sub) {
+  Widget _badge(String emoji, String? sub, {bool gold = false}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: Colors.black45,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white30),
+        border: Border.all(
+            color: gold ? const Color(0xFFFFD54F) : Colors.white30,
+            width: gold ? 1.6 : 1.0),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Text(emoji, style: const TextStyle(fontSize: 18)),
+        Text(emoji, style: const TextStyle(fontSize: 17)),
         if (sub != null) ...[
           const SizedBox(width: 3),
           Text(sub,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
+              style: TextStyle(
+                  color: gold ? const Color(0xFFFFD54F) : Colors.white,
+                  fontSize: 11,
                   fontWeight: FontWeight.bold)),
         ],
       ]),

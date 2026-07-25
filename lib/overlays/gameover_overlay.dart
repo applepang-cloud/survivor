@@ -29,6 +29,7 @@ class GameOverOverlay extends StatelessWidget {
             _stat('⏱ 생존 시간', _fmt(game.finalTime)),
             _stat('⭐ 레벨', '${game.finalLevel}'),
             _stat('☠ 처치', '${game.finalKills}'),
+            _stat('🪙 골드', '${game.finalGold}'),
             const SizedBox(height: 28),
             Row(
               mainAxisSize: MainAxisSize.min,

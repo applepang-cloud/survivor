@@ -2,18 +2,18 @@ import 'dart:ui';
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
 
+import 'stats.dart';
 import 'survivor_game.dart';
 import 'mob.dart';
 
 class Player extends SpriteAnimationComponent
     with HasGameReference<SurvivorGame>, CollisionCallbacks {
-  Player()
-      : super(size: Vector2(80, 80) * 1.3, anchor: Anchor.center);
+  Player() : super(size: Vector2(80, 80) * 1.3, anchor: Anchor.center);
 
-  double speed = 180; // 원작 3px/frame ≈ 180/s, 패시브로 증가
+  static const double baseSpeed = 180; // 원작 3px/frame ≈ 180/s
   double maxHp = 100;
   late double hp = maxHp;
-  double pickupRadius = 60; // 경험치 흡수 반경 (패시브로 증가)
+  double pickupRadius = 60; // 경험치/골드 흡수 반경 (자석 스탯)
 
   double _invuln = 0;
   int facing = 1; // 1 오른쪽, -1 왼쪽
@@ -29,6 +29,14 @@ class Player extends SpriteAnimationComponent
     add(CircleHitbox(radius: 26, anchor: Anchor.center)..position = size / 2);
   }
 
+  /// 장신구 변화 반영 (최대체력 증가분은 즉시 회복)
+  void applyStats(PlayerStats s) {
+    final newMax = 100 * s.maxHpMult;
+    if (newMax > maxHp) hp += newMax - maxHp;
+    maxHp = newMax;
+    pickupRadius = s.magnet;
+  }
+
   @override
   void update(double dt) {
     super.update(dt);
@@ -36,13 +44,17 @@ class Player extends SpriteAnimationComponent
       _invuln -= dt;
       if (_invuln <= 0) paint.colorFilter = null;
     }
+    // 회복 스탯: 초당 재생 (VS Recovery)
+    if (game.isRunning && game.stats.recovery > 0 && hp < maxHp) {
+      hp = (hp + game.stats.recovery * dt).clamp(0, maxHp);
+    }
 
     final dir = game.inputDirection();
     final moving = dir.length2 > 0.001;
     if (moving) {
       dir.normalize();
       game.lastMoveDir = dir.clone();
-      position += dir * speed * dt;
+      position += dir * baseSpeed * game.stats.moveMult * dt;
       if (dir.x.abs() > 0.01) facing = dir.x > 0 ? 1 : -1;
     }
     if (moving != _moving) {
@@ -59,10 +71,11 @@ class Player extends SpriteAnimationComponent
 
   void takeDamage(double dmg) {
     if (_invuln > 0) return;
-    hp -= dmg;
+    // 방어력: 고정 감소, 최소 1 피해 (VS Armor)
+    final eff = (dmg - game.stats.armor).clamp(1.0, double.infinity);
+    hp -= eff;
     _invuln = 0.5;
-    paint.colorFilter =
-        const ColorFilter.mode(_hitColor, BlendMode.modulate);
+    paint.colorFilter = const ColorFilter.mode(_hitColor, BlendMode.modulate);
     game.onPlayerHit();
     if (hp <= 0) {
       hp = 0;
@@ -77,6 +90,6 @@ class Player extends SpriteAnimationComponent
   @override
   void onCollision(Set<Vector2> p, PositionComponent other) {
     super.onCollision(p, other);
-    if (other is Mob) takeDamage(other.config.contactDamage);
+    if (other is Mob) takeDamage(other.contactDamage);
   }
 }

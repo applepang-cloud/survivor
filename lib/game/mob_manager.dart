@@ -14,10 +14,12 @@ class SpawnRule {
   SpawnRule(this.mobKey, this.gap, this.expDrop, this.itemDrop);
 }
 
-/// 원작 PlayingScene 의 시간대별 몹 스폰 스케줄 (10초 단위 전환).
+/// 원작 PlayingScene 의 시간대별 몹 스폰 스케줄 (10초 단위 전환)
+/// + VS식 확장: 시간 경과 몹 강화, 10분에 사신 등장.
 class MobSpawner extends Component with HasGameReference<SurvivorGame> {
   List<SpawnRule> _rules = [];
   int _phase = -1;
+  bool reaperSpawned = false;
 
   late final double spawnRadius;
 
@@ -29,6 +31,7 @@ class MobSpawner extends Component with HasGameReference<SurvivorGame> {
   void reset() {
     _phase = -1;
     _rules = [];
+    reaperSpawned = false;
     _applyPhase(0);
     // 시작 시 즉시 한 마리 (원작 create()의 new Mob(...mob1...))
     _spawn('mob1', 0.9, 0.01);
@@ -88,6 +91,19 @@ class MobSpawner extends Component with HasGameReference<SurvivorGame> {
         _spawn(r.mobKey, r.expDrop, r.itemDrop);
       }
     }
+    // 10분: 사신 등장 (VS의 30분 사신 오마주 — 사실상 런 종료)
+    if (!reaperSpawned && game.elapsed >= 600) {
+      reaperSpawned = true;
+      final a = game.rng.nextDouble() * math.pi * 2;
+      game.world.add(Mob(
+        config: kMobs['mobBoss']!,
+        position: game.player.position +
+            Vector2(math.cos(a), math.sin(a)) * spawnRadius,
+        expDropRate: 0,
+        itemDropRate: 0,
+        isReaper: true,
+      ));
+    }
   }
 
   void _spawn(String key, double expDrop, double itemDrop) {
@@ -99,6 +115,7 @@ class MobSpawner extends Component with HasGameReference<SurvivorGame> {
       position: pos,
       expDropRate: expDrop,
       itemDropRate: itemDrop,
+      hpMult: game.waveHpMult,
     ));
   }
 }

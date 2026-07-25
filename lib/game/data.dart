@@ -1,5 +1,7 @@
 import 'package:flame/components.dart';
 
+import 'stats.dart';
+
 /// 원작의 6가지 무기 (whip, arrow, sword, shield, fireball, lightning)
 enum WeaponType { arrow, whip, sword, shield, fireball, lightning }
 
@@ -31,6 +33,50 @@ const Map<WeaponType, String> kWeaponDesc = {
 };
 
 const int kMaxWeaponLevel = 8;
+
+/// 무기별 기본 치명타 확률 (행운 배율 적용, 치명타 = 2배 피해)
+const Map<WeaponType, double> kWeaponCrit = {
+  WeaponType.arrow: 0.05,
+  WeaponType.whip: 0.0,
+  WeaponType.sword: 0.05,
+  WeaponType.shield: 0.0,
+  WeaponType.fireball: 0.0,
+  WeaponType.lightning: 0.0,
+};
+
+/// 무기별 넉백 강도 (VS: 무기마다 넉백이 다르다)
+const Map<WeaponType, double> kWeaponKnock = {
+  WeaponType.arrow: 90,
+  WeaponType.whip: 50,
+  WeaponType.sword: 90,
+  WeaponType.shield: 150,
+  WeaponType.fireball: 130,
+  WeaponType.lightning: 0,
+};
+
+/// 무기 진화 — 무기 만렙 + 대응 장신구 보유 시 보스 보물상자에서 진화 (VS 조합법)
+class EvoDef {
+  final PassiveType passive;
+  final String name;
+  final String emoji;
+  final String desc;
+  const EvoDef(this.passive, this.name, this.emoji, this.desc);
+}
+
+const Map<WeaponType, EvoDef> kEvolutions = {
+  WeaponType.whip:
+      EvoDef(PassiveType.hollowHeart, '피의 눈물', '🩸', '치명타가 터지고 명중 시 체력 회복'),
+  WeaponType.arrow:
+      EvoDef(PassiveType.bracer, '천 개의 칼날', '⚔️', '적을 관통하는 화살 폭풍'),
+  WeaponType.sword:
+      EvoDef(PassiveType.candelabra, '죽음의 나선', '🌀', '8방향으로 회전하며 관통'),
+  WeaponType.fireball:
+      EvoDef(PassiveType.spinach, '지옥불', '☄️', '거대한 화염구가 모든 것을 관통'),
+  WeaponType.lightning:
+      EvoDef(PassiveType.duplicator, '뇌운 고리', '🌩️', '번개가 두 배로 강타'),
+  WeaponType.shield:
+      EvoDef(PassiveType.armorPlate, '수호자의 서약', '✨', '더 크고 빠른 수호 방패'),
+};
 
 /// 무기 레벨별 능력치 (레벨업 선택지로 강화)
 class WStats {

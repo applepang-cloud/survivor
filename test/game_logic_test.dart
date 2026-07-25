@@ -1,10 +1,10 @@
-import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:survivor/game/survivor_game.dart';
 import 'package:survivor/game/data.dart';
+import 'package:survivor/game/stats.dart';
 import 'package:survivor/game/mob.dart';
 
 Future<SurvivorGame> _pumpGame(WidgetTester tester) async {
@@ -19,6 +19,7 @@ Future<SurvivorGame> _pumpGame(WidgetTester tester) async {
           'hud': (_, _) => const SizedBox.shrink(),
           'levelup': (_, _) => const SizedBox.shrink(),
           'gameover': (_, _) => const SizedBox.shrink(),
+          'chest': (_, _) => const SizedBox.shrink(),
         },
       ),
     );
@@ -59,31 +60,15 @@ void main() {
     expect(game.kills, greaterThan(0));
   });
 
-  testWidgets('level up pauses and offers 3 choices', (tester) async {
+  testWidgets('level up pauses and offers 3+ choices', (tester) async {
     final game = await _pumpGame(tester);
     game.startGame();
     expect(game.level, 1);
     game.gainExp(60); // maxExp 50 초과 → 레벨업
     expect(game.level, 2);
     expect(game.isRunning, isFalse);
-    expect(game.pendingUpgrades.length, 3);
+    expect(game.pendingUpgrades.length, inInclusiveRange(3, 4));
     expect(game.maxExp, closeTo(65, 0.001)); // 1.3배
-  });
-
-  testWidgets('choosing a new-weapon option grants that weapon',
-      (tester) async {
-    final game = await _pumpGame(tester);
-    game.startGame();
-    game.gainExp(60);
-    // 새 무기 획득 선택지를 찾아 적용
-    final before = game.attack.ownedLevels.length;
-    final newWeapon =
-        game.pendingUpgrades.firstWhere((o) => o.title.contains('획득'),
-            orElse: () => game.pendingUpgrades.first);
-    game.applyUpgrade(newWeapon);
-    expect(game.isRunning, isTrue);
-    expect(game.pendingUpgrades, isEmpty);
-    expect(game.attack.ownedLevels.length, greaterThanOrEqualTo(before));
   });
 
   testWidgets('applying any option resumes the game', (tester) async {
@@ -95,10 +80,84 @@ void main() {
     expect(game.attack.owns(WeaponType.arrow), isTrue); // 시작 무기 유지
   });
 
+  testWidgets('reroll / skip / banish consume charges', (tester) async {
+    final game = await _pumpGame(tester);
+    game.startGame();
+    game.gainExp(60);
+    expect(game.rerollsLeft, 2);
+    game.rerollUpgrades();
+    expect(game.rerollsLeft, 1);
+    expect(game.pendingUpgrades.length, inInclusiveRange(3, 4));
+
+    final target = game.pendingUpgrades.first;
+    game.banishUpgrade(target);
+    expect(game.banishesLeft, 1);
+    expect(game.banished.contains(target.key), isTrue);
+    expect(game.pendingUpgrades.any((o) => o.key == target.key), isFalse);
+
+    if (!game.isRunning) {
+      game.skipUpgrade();
+      expect(game.skipsLeft, 1);
+    }
+    expect(game.isRunning, isTrue);
+  });
+
+  testWidgets('passive items shape player stats (VS 능력치)', (tester) async {
+    final game = await _pumpGame(tester);
+    game.startGame();
+    game.passives[PassiveType.spinach] = 5; // 피해 +50%
+    game.passives[PassiveType.armorPlate] = 3; // 방어 3
+    game.passives[PassiveType.hollowHeart] = 5; // 최대체력 +100%
+    game.passives[PassiveType.pummarola] = 5; // 회복 1.0/s
+    game.recomputeStats();
+
+    expect(game.stats.might, closeTo(1.5, 0.001));
+    expect(game.stats.armor, 3);
+    expect(game.player.maxHp, closeTo(200, 0.001));
+    expect(game.player.hp, closeTo(200, 0.001)); // 증가분 즉시 회복
+
+    // 방어력: 10 피해 → 7만 받는다
+    game.player.takeDamage(10);
+    expect(game.player.hp, closeTo(193, 0.001));
+
+    // 회복: 시간이 지나면 체력 재생
+    final before = game.player.hp;
+    for (var i = 0; i < 120; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(game.player.hp, greaterThan(before));
+  });
+
+  testWidgets('luck raises 4th-option chance', (tester) async {
+    final game = await _pumpGame(tester);
+    game.startGame();
+    final base = game.fourthChance;
+    game.passives[PassiveType.clover] = 5;
+    game.recomputeStats();
+    expect(game.fourthChance, greaterThan(base));
+  });
+
+  testWidgets('weapon evolution via treasure chest (VS 진화)', (tester) async {
+    final game = await _pumpGame(tester);
+    game.startGame();
+    // 채찍 만렙 + 검은 심장 → 진화 자격
+    game.attack.levels[WeaponType.whip] = kMaxWeaponLevel;
+    game.passives[PassiveType.hollowHeart] = 1;
+    game.recomputeStats();
+    expect(game.evolveEligible(), WeaponType.whip);
+
+    game.openChest();
+    expect(game.attack.isEvolved(WeaponType.whip), isTrue);
+    expect(game.chestLines.any((l) => l.contains('피의 눈물')), isTrue);
+    expect(game.isRunning, isFalse);
+    game.closeChest();
+    expect(game.isRunning, isTrue);
+  });
+
   testWidgets('player dies on lethal damage', (tester) async {
     final game = await _pumpGame(tester);
     game.startGame();
-    game.player.takeDamage(150);
+    game.player.takeDamage(500);
     expect(game.player.hp, 0);
     expect(game.isRunning, isFalse);
   });

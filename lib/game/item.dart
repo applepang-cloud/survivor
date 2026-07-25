@@ -9,6 +9,7 @@ import 'exp_up.dart';
 enum ItemType { magnet, freeze, potion, allkill }
 
 /// 원작 Items — 자석/빙결/물약/전체처치 (드랍률 0.01)
+/// 사신에게는 빙결/전체처치가 통하지 않는다.
 class ItemDrop extends SpriteComponent
     with HasGameReference<SurvivorGame>, CollisionCallbacks {
   ItemDrop({required Vector2 mobPosition, required this.isBoss})
@@ -41,6 +42,7 @@ class ItemDrop extends SpriteComponent
         break;
       case ItemType.freeze:
         for (final m in game.world.children.whereType<Mob>()) {
+          if (m.isReaper) continue;
           m.frozen = true;
           m.add(TimerComponent(
               period: 5,
@@ -50,10 +52,11 @@ class ItemDrop extends SpriteComponent
         }
         break;
       case ItemType.potion:
-        game.player.heal(20);
+        game.player.heal(30); // VS 바닥 치킨과 동일한 30 회복
         break;
       case ItemType.allkill:
         for (final m in game.world.children.whereType<Mob>().toList()) {
+          if (m.isReaper) continue;
           m.takeDamage(999999);
         }
         break;

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'data.dart';
+import 'stats.dart';
 import 'sprites.dart';
 import 'audio.dart';
 import 'player.dart';
@@ -17,32 +18,40 @@ import 'attack_manager.dart';
 import 'weapons.dart';
 import 'exp_up.dart';
 import 'item.dart';
+import 'fx.dart';
 
 class GameStats {
   final double hp, maxHp;
-  final int level, kills;
+  final int level, kills, gold;
   final double exp, maxExp, time;
   final Map<WeaponType, int> weapons; // 보유 무기 → 레벨
+  final Set<WeaponType> evolved;
+  final Map<PassiveType, int> passives; // 보유 장신구 → 레벨
   GameStats({
     required this.hp,
     required this.maxHp,
     required this.level,
     required this.kills,
+    required this.gold,
     required this.exp,
     required this.maxExp,
     required this.time,
     required this.weapons,
+    required this.evolved,
+    required this.passives,
   });
 }
 
-/// 레벨업 시 3개 중 1개를 고르는 선택지
+/// 레벨업 선택지 (무기/장신구/보급)
 class UpgradeOption {
+  final String key; // 지우기(banish) 식별용
   final String title;
   final String desc;
   final String emoji;
   final Color color;
   final void Function() apply;
-  UpgradeOption(this.title, this.desc, this.emoji, this.color, this.apply);
+  UpgradeOption(this.key, this.title, this.desc, this.emoji, this.color,
+      this.apply);
 }
 
 class SurvivorGame extends FlameGame
@@ -62,16 +71,30 @@ class SurvivorGame extends FlameGame
   late AttackManager attack;
   late JoystickComponent joystick;
 
-  // 상태
+  // 진행 상태
   double elapsed = 0;
   int kills = 0;
   int level = 1;
+  int gold = 0;
   double exp = 0;
   double maxExp = 50; // 초기 50, 레벨업마다 ×1.3
   bool isRunning = false;
   bool _leveling = false;
 
-  double damageMult = 1.0; // 패시브 공격력 강화
+  // VS 능력치 (장신구로 성장)
+  PlayerStats stats = PlayerStats();
+  final Map<PassiveType, int> passives = {};
+  static const int kMaxPassiveSlots = 6;
+
+  // 레벨업 보조 (VS: 새로고침/건너뛰기/지우기)
+  int rerollsLeft = 2, skipsLeft = 2, banishesLeft = 2;
+  final Set<String> banished = {};
+
+  // 보물상자 / 사신
+  double lastChestAt = -999;
+  List<String> chestLines = [];
+  bool reaperWarned = false;
+
   double shieldAngle = 0.05;
   Vector2 lastMoveDir = Vector2(1, 0);
 
@@ -84,12 +107,15 @@ class SurvivorGame extends FlameGame
     maxHp: 100,
     level: 1,
     kills: 0,
+    gold: 0,
     exp: 0,
     maxExp: 50,
     time: 0,
     weapons: {WeaponType.arrow: 1},
+    evolved: {},
+    passives: {},
   ));
-  int finalTime = 0, finalLevel = 1, finalKills = 0;
+  int finalTime = 0, finalLevel = 1, finalKills = 0, finalGold = 0;
 
   @override
   Color backgroundColor() => const Color(0xFF000000);
@@ -139,43 +165,69 @@ class SurvivorGame extends FlameGame
       v.add(joystick.relativeDelta);
     }
     if (_keys.contains(LogicalKeyboardKey.arrowUp) ||
-        _keys.contains(LogicalKeyboardKey.keyW)) v.y -= 1;
+        _keys.contains(LogicalKeyboardKey.keyW)) {
+      v.y -= 1;
+    }
     if (_keys.contains(LogicalKeyboardKey.arrowDown) ||
-        _keys.contains(LogicalKeyboardKey.keyS)) v.y += 1;
+        _keys.contains(LogicalKeyboardKey.keyS)) {
+      v.y += 1;
+    }
     if (_keys.contains(LogicalKeyboardKey.arrowLeft) ||
-        _keys.contains(LogicalKeyboardKey.keyA)) v.x -= 1;
+        _keys.contains(LogicalKeyboardKey.keyA)) {
+      v.x -= 1;
+    }
     if (_keys.contains(LogicalKeyboardKey.arrowRight) ||
-        _keys.contains(LogicalKeyboardKey.keyD)) v.x += 1;
+        _keys.contains(LogicalKeyboardKey.keyD)) {
+      v.x += 1;
+    }
     return v;
   }
 
   // ---- 흐름 ----
   void startGame() {
-    // 정리
-    world.children.whereType<Mob>().forEach((m) => m.removeFromParent());
-    world.children.whereType<ExpUp>().forEach((m) => m.removeFromParent());
-    world.children.whereType<ItemDrop>().forEach((m) => m.removeFromParent());
-    world.children.whereType<Arrow>().forEach((m) => m.removeFromParent());
-    world.children.whereType<Sword>().forEach((m) => m.removeFromParent());
-    world.children.whereType<Whip>().forEach((m) => m.removeFromParent());
-    world.children.whereType<Fireball>().forEach((m) => m.removeFromParent());
-    world.children.whereType<Lightning>().forEach((m) => m.removeFromParent());
-    world.children.whereType<ShieldOrb>().forEach((m) => m.removeFromParent());
+    // 월드 정리
+    for (final type in [
+      Mob,
+      ExpUp,
+      ItemDrop,
+      Arrow,
+      Sword,
+      Whip,
+      Fireball,
+      Lightning,
+      ShieldOrb,
+      TreasureChest,
+      GoldCoin,
+      DamageText,
+    ]) {
+      world.children
+          .where((c) => c.runtimeType == type)
+          .toList()
+          .forEach((c) => c.removeFromParent());
+    }
 
     player.position = Vector2.zero();
     player.maxHp = 100;
     player.hp = 100;
-    player.speed = 180;
     player.pickupRadius = 60;
     player.paint.colorFilter = null;
 
     elapsed = 0;
     kills = 0;
     level = 1;
+    gold = 0;
     exp = 0;
     maxExp = 50;
     _leveling = false;
-    damageMult = 1.0;
+    stats = PlayerStats();
+    passives.clear();
+    rerollsLeft = 2;
+    skipsLeft = 2;
+    banishesLeft = 2;
+    banished.clear();
+    lastChestAt = -999;
+    chestLines = [];
+    reaperWarned = false;
     pendingUpgrades = [];
     shieldAngle = 0.05;
     lastMoveDir = Vector2(1, 0);
@@ -186,6 +238,7 @@ class SurvivorGame extends FlameGame
     overlays.remove('menu');
     overlays.remove('gameover');
     overlays.remove('levelup');
+    overlays.remove('chest');
     if (!joystick.isMounted) camera.viewport.add(joystick);
     isRunning = true;
     resumeEngine();
@@ -198,6 +251,9 @@ class SurvivorGame extends FlameGame
     elapsed += dt;
     _updateHud();
   }
+
+  /// 시간 경과 몹 체력 배율 (VS: 웨이브가 갈수록 강해짐)
+  double get waveHpMult => 1 + math.max(0, elapsed - 120) / 60 * 0.6;
 
   // ---- 조준 헬퍼 ----
   Mob? closestMob() {
@@ -222,6 +278,17 @@ class SurvivorGame extends FlameGame
   // ---- 콜백 ----
   void onMobKilled() => kills++;
 
+  void gainGold(int amount) {
+    gold += amount;
+    audio.pickup();
+  }
+
+  void spawnDamageText(double dmg, Vector2 pos, {bool crit = false}) {
+    // 성능 보호: 동시 표시 수 제한 (VS도 후반 데미지표시가 부하 주범)
+    if (world.children.whereType<DamageText>().length > 40) return;
+    world.add(DamageText(dmg, pos.clone(), crit: crit));
+  }
+
   void onPlayerHit() {
     audio.hit();
     camera.viewfinder.add(MoveByEffect(
@@ -232,7 +299,7 @@ class SurvivorGame extends FlameGame
 
   void gainExp(int amount) {
     if (_leveling) return;
-    exp += amount;
+    exp += amount * stats.growth;
     if (exp >= maxExp) _levelUp();
   }
 
@@ -249,56 +316,152 @@ class SurvivorGame extends FlameGame
     overlays.add('levelup');
   }
 
-  /// 레벨업 화면에서 3개 중 하나를 고르면 호출
-  void applyUpgrade(UpgradeOption option) {
-    option.apply();
+  void _closeLevelUp() {
     pendingUpgrades = [];
     _leveling = false;
     overlays.remove('levelup');
     isRunning = true;
     _updateHud();
     resumeEngine();
-    // 남은 경험치로 또 레벨업 가능하면 연속 처리
-    if (exp >= maxExp) _levelUp();
+    if (exp >= maxExp) _levelUp(); // 연속 레벨업
   }
+
+  void applyUpgrade(UpgradeOption option) {
+    option.apply();
+    recomputeStats();
+    _closeLevelUp();
+  }
+
+  /// 새로고침 (VS Reroll)
+  void rerollUpgrades() {
+    if (rerollsLeft <= 0) return;
+    rerollsLeft--;
+    pendingUpgrades = _buildOptions();
+    _updateHud();
+    overlays.remove('levelup');
+    overlays.add('levelup'); // 강제 리빌드
+  }
+
+  /// 건너뛰기 (VS Skip)
+  void skipUpgrade() {
+    if (skipsLeft <= 0) return;
+    skipsLeft--;
+    _closeLevelUp();
+  }
+
+  /// 지우기 (VS Banish) — 이번 판에서 해당 선택지 영구 제거
+  void banishUpgrade(UpgradeOption option) {
+    if (banishesLeft <= 0) return;
+    banishesLeft--;
+    banished.add(option.key);
+    pendingUpgrades =
+        pendingUpgrades.where((o) => o.key != option.key).toList();
+    if (pendingUpgrades.isEmpty) {
+      _closeLevelUp();
+    } else {
+      overlays.remove('levelup');
+      overlays.add('levelup');
+    }
+  }
+
+  /// 4번째 선택지 확률 — 행운의 영향 (VS: 행운이 4번째 슬롯 확률을 높임)
+  double get fourthChance =>
+      (0.05 + (stats.luck - 1.0) * 0.5).clamp(0.0, 0.6);
 
   List<UpgradeOption> _buildOptions() {
     final pool = <UpgradeOption>[];
     const gold = Color(0xFFFFD54F);
+    const blue = Color(0xFF4FC3F7);
+    const green = Color(0xFF81C784);
 
-    // 보유 무기 강화
-    for (final t in attack.levels.keys) {
-      if (attack.levelOf(t) < kMaxWeaponLevel) {
-        final lv = attack.levelOf(t) + 1;
-        pool.add(UpgradeOption('${kWeaponName[t]} Lv.$lv', kWeaponDesc[t]!,
-            kWeaponEmoji[t]!, gold, () => attack.upgrade(t)));
-      }
-    }
-    // 새 무기 획득
+    // 무기 강화 / 신규
     for (final t in WeaponType.values) {
-      if (!attack.owns(t)) {
-        pool.add(UpgradeOption('${kWeaponName[t]} 획득!', kWeaponDesc[t]!,
-            kWeaponEmoji[t]!, const Color(0xFF4FC3F7), () => attack.addWeapon(t)));
+      final key = 'w:${t.name}';
+      if (banished.contains(key)) continue;
+      final lv = attack.levelOf(t);
+      if (lv > 0 && lv < kMaxWeaponLevel) {
+        pool.add(UpgradeOption(key, '${kWeaponName[t]} Lv.${lv + 1}',
+            kWeaponDesc[t]!, kWeaponEmoji[t]!, gold, () => attack.upgrade(t)));
+      } else if (lv == 0) {
+        pool.add(UpgradeOption(key, '${kWeaponName[t]} 획득!', kWeaponDesc[t]!,
+            kWeaponEmoji[t]!, blue, () => attack.addWeapon(t)));
       }
     }
-    // 패시브 (항상 선택 가능)
-    final passives = <UpgradeOption>[
-      UpgradeOption('체력 회복', 'HP를 40 회복', '❤️', const Color(0xFFEF5350),
-          () => player.heal(40)),
-      UpgradeOption('최대 체력 +25', '튼튼해진다', '🛡️', const Color(0xFF66BB6A), () {
-        player.maxHp += 25;
-        player.heal(25);
-      }),
-      UpgradeOption('이동 속도 +10%', '더 빠르게', '👟', const Color(0xFF29B6F6),
-          () => player.speed *= 1.10),
-      UpgradeOption('획득 범위 +30', '경험치를 멀리서 흡수', '🧲',
-          const Color(0xFFAB47BC), () => player.pickupRadius += 30),
-      UpgradeOption('공격력 +15%', '모든 무기 강화', '💥', const Color(0xFFFF7043),
-          () => damageMult *= 1.15),
-    ];
 
-    final all = [...pool, ...passives]..shuffle(rng);
-    return all.take(3).toList();
+    // 장신구 강화 / 신규 (슬롯 6개 제한)
+    for (final p in PassiveType.values) {
+      final key = 'p:${p.name}';
+      if (banished.contains(key)) continue;
+      final def = kPassives[p]!;
+      final lv = passives[p] ?? 0;
+      if (lv > 0 && lv < def.maxLevel) {
+        pool.add(UpgradeOption(key, '${def.name} Lv.${lv + 1}', def.desc,
+            def.emoji, green, () => passives[p] = lv + 1));
+      } else if (lv == 0 && passives.length < kMaxPassiveSlots) {
+        pool.add(UpgradeOption(key, '${def.name} 획득!', def.desc, def.emoji,
+            green, () => passives[p] = 1));
+      }
+    }
+
+    // 모두 만렙이면 보급 선택지 (VS: 치킨/골드)
+    if (pool.isEmpty) {
+      return [
+        UpgradeOption('chicken', '치킨', '체력 30 회복', '🍗',
+            const Color(0xFFEF5350), () => player.heal(30)),
+        UpgradeOption('gold', '금화 주머니', '골드 +25', '🪙', gold,
+            () => this.gold += 25),
+      ];
+    }
+
+    pool.shuffle(rng);
+    final n = rng.nextDouble() < fourthChance ? 4 : 3;
+    return pool.take(n).toList();
+  }
+
+  /// 장신구 변화 반영 — 스탯 재계산 + 파생치 적용
+  void recomputeStats() {
+    stats = PlayerStats.from(passives);
+    player.applyStats(stats);
+    attack.refreshShields();
+  }
+
+  // ---- 보물상자 (VS: 진화는 상자에서) ----
+  WeaponType? evolveEligible() {
+    for (final t in attack.levels.keys) {
+      if (attack.levelOf(t) >= kMaxWeaponLevel &&
+          !attack.isEvolved(t) &&
+          passives.containsKey(kEvolutions[t]!.passive)) {
+        return t;
+      }
+    }
+    return null;
+  }
+
+  void openChest() {
+    chestLines = [];
+    final t = evolveEligible();
+    if (t != null) {
+      attack.evolve(t);
+      final evo = kEvolutions[t]!;
+      chestLines.add('무기 진화! ${kWeaponEmoji[t]} → ${evo.emoji} ${evo.name}');
+      chestLines.add(evo.desc);
+      audio.levelup();
+    } else {
+      audio.item();
+    }
+    final g = 20 + rng.nextInt(41);
+    gold += g;
+    chestLines.add('🪙 골드 +$g');
+    isRunning = false;
+    _updateHud();
+    pauseEngine();
+    overlays.add('chest');
+  }
+
+  void closeChest() {
+    overlays.remove('chest');
+    isRunning = true;
+    resumeEngine();
   }
 
   void gameOver() {
@@ -307,6 +470,7 @@ class SurvivorGame extends FlameGame
     finalTime = elapsed.floor();
     finalLevel = level;
     finalKills = kills;
+    finalGold = gold;
     if (joystick.isMounted) joystick.removeFromParent();
     overlays.add('gameover');
     pauseEngine();
@@ -324,10 +488,13 @@ class SurvivorGame extends FlameGame
       maxHp: player.maxHp,
       level: level,
       kills: kills,
+      gold: gold,
       exp: exp,
       maxExp: maxExp,
       time: elapsed,
       weapons: attack.ownedLevels,
+      evolved: Set.of(attack.evolved),
+      passives: Map.of(passives),
     );
   }
 }
