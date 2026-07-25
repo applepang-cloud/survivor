@@ -17,6 +17,7 @@ enum PassiveType {
   attractorb, // 매혹구: 획득 반경 +20/lvl
   crown, // 왕관: 성장(경험치) +8%/lvl
   clover, // 클로버: 행운 +10%/lvl
+  skull, // 미치광이의 두개골: 저주 — 적 스폰/체력↑, 경험치↑ (리스크 교환)
 }
 
 class PassiveDef {
@@ -41,6 +42,8 @@ const Map<PassiveType, PassiveDef> kPassives = {
   PassiveType.attractorb: PassiveDef('매혹구', '🧲', '경험치 획득 반경 +20', 5),
   PassiveType.crown: PassiveDef('왕관', '👑', '경험치 획득량 +8%', 5),
   PassiveType.clover: PassiveDef('클로버', '🍀', '행운 +10% (4번째 선택지·치명타)', 5),
+  PassiveType.skull: PassiveDef(
+      '미치광이의 두개골', '💀', '저주: 적 스폰 +25%·체력 +20%, 경험치 +15%', 3),
 };
 
 /// 캐릭터 종합 스탯 — 장신구 레벨로부터 산출 (VS 능력치 문서의 계산식)
@@ -58,6 +61,10 @@ class PlayerStats {
   double magnet = 60; // 획득 반경(px)
   double growth = 1; // 경험치 배율
   double luck = 1; // 행운
+  // 저주(리스크 교환): 적 스폰 빈도·체력을 올리는 대신 경험치 가속
+  double curseSpawn = 1;
+  double curseHp = 1;
+  double curseExp = 1;
 
   static PlayerStats from(Map<PassiveType, int> p) {
     int l(PassiveType t) => p[t] ?? 0;
@@ -75,6 +82,9 @@ class PlayerStats {
     s.magnet = 60 + 20.0 * l(PassiveType.attractorb);
     s.growth = 1 + 0.08 * l(PassiveType.crown);
     s.luck = 1 + 0.10 * l(PassiveType.clover);
+    s.curseSpawn = 1 + 0.25 * l(PassiveType.skull);
+    s.curseHp = 1 + 0.20 * l(PassiveType.skull);
+    s.curseExp = 1 + 0.15 * l(PassiveType.skull);
     return s;
   }
 }

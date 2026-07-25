@@ -300,8 +300,9 @@ class SurvivorGame extends FlameGame
     _updateHud();
   }
 
-  /// 시간 경과 몹 체력 배율 (VS: 웨이브가 갈수록 강해짐)
-  double get waveHpMult => 1 + math.max(0, elapsed - 120) / 60 * 0.6;
+  /// 시간 경과 몹 체력 배율 (VS: 웨이브가 갈수록 강해짐) × 저주
+  double get waveHpMult =>
+      (1 + math.max(0, elapsed - 120) / 60 * 0.6) * stats.curseHp;
 
   // ---- 조준 헬퍼 ----
   Mob? closestMob() {
@@ -358,7 +359,7 @@ class SurvivorGame extends FlameGame
 
   void gainExp(int amount) {
     if (_leveling) return;
-    exp += amount * stats.growth;
+    exp += amount * stats.growth * stats.curseExp;
     if (exp >= maxExp) _levelUp();
   }
 

@@ -127,9 +127,11 @@ class MobSpawner extends Component with HasGameReference<SurvivorGame> {
     if (!game.isRunning) return;
     final t = game.elapsed;
     _applyPhase(_phaseForTime(t));
+    // 저주: 스폰 간격 단축 (적이 더 자주 나온다)
+    final curse = game.stats.curseSpawn;
     for (final r in _rules) {
       r.timer += dt;
-      if (r.timer >= r.gap) {
+      if (r.timer >= r.gap / curse) {
         r.timer = 0;
         _spawn(r.mobKey, r.expDrop, r.itemDrop);
       }

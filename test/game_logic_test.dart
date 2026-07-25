@@ -269,6 +269,28 @@ void main() {
         2);
   });
 
+  testWidgets('curse skull trades danger for faster growth', (tester) async {
+    final game = await _pumpGame(tester);
+    game.startGame();
+
+    // 저주 없음: 기준값
+    expect(game.stats.curseSpawn, 1.0);
+    expect(game.waveHpMult, closeTo(1.0, 1e-9));
+
+    // 미치광이의 두개골 3랭크
+    game.passives[PassiveType.skull] = 3;
+    game.recomputeStats();
+    expect(game.stats.curseSpawn, closeTo(1.75, 1e-9)); // 스폰 +75%
+    expect(game.stats.curseHp, closeTo(1.6, 1e-9)); // 적 체력 +60%
+    expect(game.stats.curseExp, closeTo(1.45, 1e-9)); // 경험치 +45%
+    expect(game.waveHpMult, closeTo(1.6, 1e-9)); // 몹 체력에 반영
+
+    // 경험치 가속 반영
+    final before = game.exp;
+    game.gainExp(10);
+    expect(game.exp - before, closeTo(14.5, 0.01));
+  });
+
   testWidgets('player dies on lethal damage', (tester) async {
     final game = await _pumpGame(tester);
     game.startGame();
