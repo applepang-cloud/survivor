@@ -19,8 +19,15 @@ class Player extends SpriteAnimationComponent
   int facing = 1; // 1 오른쪽, -1 왼쪽
   bool _moving = false;
   bool _flipped = false;
+  ColorFilter? _baseTint; // 대원 고유 틴트 (피격 플래시 후 복귀)
 
   static const _hitColor = Color(0xFFDB4455);
+
+  /// 대원 틴트 설정 (startGame에서 호출)
+  void setCharacterTint(Color color) {
+    _baseTint = ColorFilter.mode(color, BlendMode.modulate);
+    paint.colorFilter = _baseTint;
+  }
 
   @override
   Future<void> onLoad() async {
@@ -42,7 +49,7 @@ class Player extends SpriteAnimationComponent
     super.update(dt);
     if (_invuln > 0) {
       _invuln -= dt;
-      if (_invuln <= 0) paint.colorFilter = null;
+      if (_invuln <= 0) paint.colorFilter = _baseTint;
     }
     // 회복 스탯: 초당 재생 (VS Recovery)
     if (game.isRunning && game.stats.recovery > 0 && hp < maxHp) {
@@ -77,6 +84,11 @@ class Player extends SpriteAnimationComponent
     _invuln = 0.5;
     paint.colorFilter = const ColorFilter.mode(_hitColor, BlendMode.modulate);
     game.onPlayerHit();
+    // 위기 무전 (1회)
+    if (hp > 0 && hp / maxHp < 0.3 && !game.lowHpSaid) {
+      game.lowHpSaid = true;
+      game.radioSay(game.character.talkLowHp);
+    }
     if (hp <= 0) {
       hp = 0;
       game.gameOver();

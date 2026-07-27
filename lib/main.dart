@@ -12,6 +12,7 @@ import 'overlays/gameover_overlay.dart';
 import 'overlays/chest_overlay.dart';
 import 'overlays/clear_overlay.dart';
 import 'overlays/pause_overlay.dart';
+import 'overlays/story_overlay.dart';
 import 'overlays/sound_button.dart';
 
 void main() async {
@@ -48,6 +49,7 @@ class SurvivorApp extends StatelessWidget {
             'gameover': (ctx, g) => GameOverOverlay(game: g),
             'chest': (ctx, g) => ChestOverlay(game: g),
             'clear': (ctx, g) => ClearOverlay(game: g),
+            'story': (ctx, g) => StoryOverlay(game: g),
             'pause': (ctx, g) => PauseOverlay(game: g),
             'soundbtn': (ctx, g) => SoundButton(game: g),
           },

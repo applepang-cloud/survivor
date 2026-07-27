@@ -6,10 +6,12 @@ class MetaProgress {
   bool hyperUnlocked = false; // 25분 스테이지 보스 처치
   bool turboUnlocked = false; // 한 판에서 레벨 30 도달
   bool endlessUnlocked = false; // 30분 생존 클리어
+  int selectedChar = 0; // 마지막으로 선택한 대원
 
   static const _kHyper = 'meta.hyper';
   static const _kTurbo = 'meta.turbo';
   static const _kEndless = 'meta.endless';
+  static const _kChar = 'meta.char';
 
   // 테스트 등 플러그인 없는 환경에서 플랫폼 채널이 영원히 응답하지 않을 수 있어
   // 타임아웃으로 방어한다 (실기기/웹에서는 수 ms 안에 완료됨).
@@ -23,6 +25,7 @@ class MetaProgress {
       m.hyperUnlocked = p.getBool(_kHyper) ?? false;
       m.turboUnlocked = p.getBool(_kTurbo) ?? false;
       m.endlessUnlocked = p.getBool(_kEndless) ?? false;
+      m.selectedChar = p.getInt(_kChar) ?? 0;
     } catch (_) {}
     return m;
   }
@@ -33,6 +36,7 @@ class MetaProgress {
       await p.setBool(_kHyper, hyperUnlocked);
       await p.setBool(_kTurbo, turboUnlocked);
       await p.setBool(_kEndless, endlessUnlocked);
+      await p.setInt(_kChar, selectedChar);
     } catch (_) {}
   }
 }

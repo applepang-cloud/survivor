@@ -24,6 +24,7 @@ Future<SurvivorGame> _pumpGame(WidgetTester tester) async {
           'chest': (_, _) => const SizedBox.shrink(),
           'pause': (_, _) => const SizedBox.shrink(),
           'clear': (_, _) => const SizedBox.shrink(),
+          'story': (_, _) => const SizedBox.shrink(),
         },
       ),
     );
@@ -372,8 +373,13 @@ void main() {
     expect(game.overlays.isActive('clear'), isTrue);
 
     game.finishRun();
-    expect(game.cleared, isTrue); // 게임오버 화면이 승리 스타일로 표시
-    expect(game.overlays.isActive('gameover'), isTrue);
+    expect(game.cleared, isTrue);
+    // 결과 화면 전에 승리 대화가 먼저 나온다
+    expect(game.overlays.isActive('story'), isTrue);
+    for (var i = 0; i < 10 && game.overlays.isActive('story'); i++) {
+      game.advanceStory();
+    }
+    expect(game.overlays.isActive('gameover'), isTrue); // 승리 스타일 결과
     expect(game.overlays.isActive('clear'), isFalse);
     expect(game.finalTime, greaterThanOrEqualTo(1800));
 
@@ -402,6 +408,59 @@ void main() {
     final before = game.exp;
     game.gainExp(10);
     expect(game.exp - before, closeTo(14.5, 0.01));
+  });
+
+  testWidgets('sortie: intro dialogue then run starts', (tester) async {
+    final game = await _pumpGame(tester);
+    game.overlays.add('menu');
+    game.beginSortie();
+    // 출격 전 대화 표시, 아직 게임 시작 전
+    expect(game.overlays.isActive('story'), isTrue);
+    expect(game.isRunning, isFalse);
+    expect(game.storyLines.length, game.character.intro.length);
+
+    for (var i = 0; i < 10 && game.overlays.isActive('story'); i++) {
+      game.advanceStory();
+    }
+    expect(game.isRunning, isTrue); // 대화 끝 → 자동 출격
+  });
+
+  testWidgets('character bonuses apply (유나 공격력 / 리제 체력)',
+      (tester) async {
+    final game = await _pumpGame(tester);
+
+    game.selectCharacter(1); // 유나: 공격력 +10%
+    game.startGame();
+    expect(game.character.name, '유나');
+    expect(game.stats.might, closeTo(1.10, 1e-9));
+    expect(game.player.maxHp, closeTo(100, 1e-9));
+
+    game.selectCharacter(2); // 리제: 최대 체력 +20%
+    await tester.pump(const Duration(milliseconds: 16));
+    game.startGame();
+    expect(game.player.maxHp, closeTo(120, 1e-9));
+    expect(game.player.hp, closeTo(120, 1e-9));
+    expect(game.meta.selectedChar, 2); // 선택 저장
+  });
+
+  testWidgets('radio chatter on first level up and defeat dialogue',
+      (tester) async {
+    final game = await _pumpGame(tester);
+    game.startGame();
+    expect(game.radio.value, isNull);
+
+    game.gainExp(60); // 레벨 2 도달
+    expect(game.radio.value, game.character.talkFirstLevel); // 무전 발생
+    game.applyUpgrade(game.pendingUpgrades.first);
+
+    // 사망 → 패배 대화 → 결과 화면
+    game.player.takeDamage(9999);
+    expect(game.overlays.isActive('story'), isTrue);
+    expect(game.storyLines.length, game.character.defeat.length);
+    for (var i = 0; i < 10 && game.overlays.isActive('story'); i++) {
+      game.advanceStory();
+    }
+    expect(game.overlays.isActive('gameover'), isTrue);
   });
 
   testWidgets('player dies on lethal damage', (tester) async {

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../game/survivor_game.dart';
+import '../game/characters.dart';
+import '../ui/portrait.dart';
 
 /// 타이틀 메뉴 — 모드 토글(하이퍼/단축/무한, VS식 해금) + 시작.
 class MenuOverlay extends StatefulWidget {
@@ -22,10 +24,27 @@ class _MenuOverlayState extends State<MenuOverlay> {
         Image.asset('assets/images/main.png', fit: BoxFit.cover),
         Container(color: Colors.black.withValues(alpha: 0.35)),
         Align(
-          alignment: const Alignment(0, 0.62),
+          alignment: const Alignment(0, 0.72),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // 출격 대원 선택 (대장 = 플레이어)
+              const Text('출격 대원 선택',
+                  style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var i = 0; i < kCharacters.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 8),
+                    _charCard(i),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 10),
               // 모드 토글 (해금식, 중첩 가능)
               Wrap(
                 spacing: 8,
@@ -69,20 +88,20 @@ class _MenuOverlayState extends State<MenuOverlay> {
               ),
               const SizedBox(height: 10),
               ElevatedButton(
-                onPressed: game.startGame,
+                onPressed: game.beginSortie,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF677CED),
                   foregroundColor: Colors.white,
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 56, vertical: 18),
+                      const EdgeInsets.symmetric(horizontal: 56, vertical: 16),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14)),
                 ),
-                child: const Text('게임 시작',
-                    style:
-                        TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                child: Text('${game.character.name}와 출격 🚀',
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.bold)),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -101,6 +120,47 @@ class _MenuOverlayState extends State<MenuOverlay> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _charCard(int index) {
+    final c = kCharacters[index];
+    final selected = game.character.id == c.id;
+    return GestureDetector(
+      onTap: () => setState(() => game.selectCharacter(index)),
+      child: Container(
+        width: 132,
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: selected ? 0.72 : 0.45),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? c.color : Colors.white24,
+            width: selected ? 2.5 : 1,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CharacterPortrait(game: game, character: c, size: 56),
+            const SizedBox(height: 5),
+            Text(c.name,
+                style: TextStyle(
+                    color: selected ? c.color : Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold)),
+            Text(c.title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white54, fontSize: 9)),
+            const SizedBox(height: 3),
+            Text(c.bonusDesc,
+                style: TextStyle(
+                    color: c.color,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
     );
   }
 

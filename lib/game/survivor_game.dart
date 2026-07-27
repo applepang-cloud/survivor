@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'data.dart';
 import 'stats.dart';
 import 'meta.dart';
+import 'characters.dart';
 import 'sprites.dart';
 import 'audio.dart';
 import 'player.dart';
@@ -113,6 +114,14 @@ class SurvivorGame extends FlameGame
   bool endlessJustUnlocked = false; // 클리어 화면 안내용
   bool stageBossKilled = false;
 
+  // ---- 대원(전투 캐릭터) & 스토리 ----
+  Character character = kCharacters[0];
+  List<StoryLine> storyLines = [];
+  int storyIndex = 0;
+  VoidCallback? _storyDone;
+  bool _evolutionAnnounced = false; // 10분 무전 1회
+  bool lowHpSaid = false; // 위기 무전 1회
+
   /// 무한 모드 사이클 (0부터). 일반 모드는 항상 0.
   int get endlessCycle =>
       modeEndless ? (elapsed ~/ kRunSeconds).clamp(0, 99) : 0;
@@ -132,6 +141,9 @@ class SurvivorGame extends FlameGame
 
   /// 화면 중앙 경고 배너 (사신 예고, 포위 등)
   final ValueNotifier<String?> banner = ValueNotifier(null);
+
+  /// 대원 무전 (전투 중 캐릭터 대사, 좌측 패널에 잠깐 표시)
+  final ValueNotifier<String?> radio = ValueNotifier(null);
 
   final ValueNotifier<GameStats> hud = ValueNotifier(GameStats(
     hp: 100,
@@ -156,6 +168,8 @@ class SurvivorGame extends FlameGame
     await gfx.load(images);
     await audio.preload();
     meta = await MetaProgress.load();
+    character =
+        kCharacters[meta.selectedChar.clamp(0, kCharacters.length - 1)];
 
     background = Background();
     world.add(background);
@@ -195,11 +209,12 @@ class SurvivorGame extends FlameGame
     return KeyEventResult.handled;
   }
 
-  /// ESC 일시정지 토글 — 레벨업/상자/클리어/게임오버/메뉴 중에는 무시
+  /// ESC 일시정지 토글 — 레벨업/상자/클리어/스토리/게임오버/메뉴 중에는 무시
   void togglePause() {
     if (overlays.isActive('levelup') ||
         overlays.isActive('chest') ||
         overlays.isActive('clear') ||
+        overlays.isActive('story') ||
         overlays.isActive('gameover') ||
         overlays.isActive('menu')) {
       return;
@@ -279,10 +294,9 @@ class SurvivorGame extends FlameGame
     }
 
     player.position = Vector2.zero();
-    player.maxHp = 100;
-    player.hp = 100;
     player.pickupRadius = 60;
-    player.paint.colorFilter = null;
+    // 대원 틴트 적용 (피격 플래시 후에도 이 색으로 복귀)
+    player.setCharacterTint(character.tint);
 
     elapsed = 0;
     kills = 0;
@@ -291,8 +305,11 @@ class SurvivorGame extends FlameGame
     exp = 0;
     maxExp = 50;
     _leveling = false;
-    stats = PlayerStats();
     passives.clear();
+    // 스탯 = 장신구(없음) × 대원 보너스 → 최대체력 확정 후 완전 회복
+    recomputeStats();
+    player.maxHp = 100 * stats.maxHpMult;
+    player.hp = player.maxHp;
     rerollsLeft = 2;
     skipsLeft = 2;
     banishesLeft = 2;
@@ -304,6 +321,9 @@ class SurvivorGame extends FlameGame
     stageBossKilled = false;
     endlessJustUnlocked = false;
     banner.value = null;
+    radio.value = null;
+    _evolutionAnnounced = false;
+    lowHpSaid = false;
     escPaused = false;
     // 단축 모드: 전체 2배속 (모드 플래그는 메뉴에서 선택되어 유지됨)
     timeScale = modeTurbo ? 2.0 : 1.0;
@@ -335,6 +355,11 @@ class SurvivorGame extends FlameGame
     // 주의: 이 오버라이드는 HasTimeScale 스케일링 이전의 dt를 받으므로
     // 게임 시계는 직접 배속을 곱한다 (자식 컴포넌트는 믹스인이 스케일).
     elapsed += dt * timeScale;
+    // 10:00 진화 개방 무전 (1회)
+    if (!_evolutionAnnounced && elapsed >= kChestGateAt) {
+      _evolutionAnnounced = true;
+      radioSay(character.talkEvolution);
+    }
     // 30:00 도달 = 스테이지 클리어 (무한 모드는 계속 루프)
     if (!modeEndless && !cleared && elapsed >= kRunSeconds) {
       cleared = true;
@@ -422,6 +447,57 @@ class SurvivorGame extends FlameGame
         }));
   }
 
+  /// 대원 무전 한마디 (자동 소멸)
+  void radioSay(String text, [double seconds = 4.5]) {
+    radio.value = text;
+    add(TimerComponent(
+        period: seconds,
+        repeat: false,
+        removeOnFinish: true,
+        onTick: () {
+          if (radio.value == text) radio.value = null;
+        }));
+  }
+
+  // ---- 스토리 (VN식 대화: 출격 전 / 승리 / 패배) ----
+  void startStory(List<StoryLine> lines, {VoidCallback? onDone}) {
+    if (lines.isEmpty) {
+      onDone?.call();
+      return;
+    }
+    storyLines = lines;
+    storyIndex = 0;
+    _storyDone = onDone;
+    overlays.add('story');
+  }
+
+  /// 대화 진행 (탭) — 마지막 줄이면 종료 콜백
+  void advanceStory() {
+    if (storyIndex < storyLines.length - 1) {
+      storyIndex++;
+      overlays.remove('story');
+      overlays.add('story'); // 강제 리빌드
+    } else {
+      overlays.remove('story');
+      final cb = _storyDone;
+      _storyDone = null;
+      cb?.call();
+    }
+  }
+
+  /// 메뉴 "출격" — 출격 전 대화 후 실제 게임 시작
+  void beginSortie() {
+    overlays.remove('menu');
+    startStory(character.intro, onDone: startGame);
+  }
+
+  /// 대원 선택 (메뉴)
+  void selectCharacter(int index) {
+    character = kCharacters[index.clamp(0, kCharacters.length - 1)];
+    meta.selectedChar = index;
+    meta.save();
+  }
+
   void gainGold(int amount) {
     // 하이퍼 모드: 골드 +50% (VS 하이퍼의 골드 보너스)
     gold += (amount * (modeHyper ? 1.5 : 1.0)).round();
@@ -451,6 +527,7 @@ class SurvivorGame extends FlameGame
 
   void _levelUp() {
     level++;
+    if (level == 2) radioSay(character.talkFirstLevel); // 첫 레벨업 무전
     // 해금: 한 판에서 레벨 30 도달 → 단축 모드
     if (level >= 30 && !meta.turboUnlocked) {
       meta.turboUnlocked = true;
@@ -570,9 +647,12 @@ class SurvivorGame extends FlameGame
     return pool.take(n).toList();
   }
 
-  /// 장신구 변화 반영 — 스탯 재계산 + 파생치 적용
+  /// 장신구 변화 반영 — 스탯 재계산(장신구 × 대원 보너스) + 파생치 적용
   void recomputeStats() {
     stats = PlayerStats.from(passives);
+    stats.might *= character.might;
+    stats.moveMult *= character.move;
+    stats.maxHpMult *= character.hpMult;
     player.applyStats(stats);
     attack.refreshShields();
   }
@@ -626,8 +706,10 @@ class SurvivorGame extends FlameGame
     finalKills = kills;
     finalGold = gold;
     if (joystick.isMounted) joystick.removeFromParent();
-    overlays.add('gameover');
     pauseEngine();
+    // 결과 화면 전에 대원과의 대화 (승리/위로)
+    startStory(cleared ? character.victory : character.defeat,
+        onDone: () => overlays.add('gameover'));
   }
 
   void backToMenu() {

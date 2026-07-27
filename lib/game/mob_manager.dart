@@ -168,6 +168,7 @@ class MobSpawner extends Component with HasGameReference<SurvivorGame> {
       stageBossSpawned = false;
       _phase = -1; // 각본 처음부터
       game.showBanner('🔄 사이클 ${_cycle + 1} — 적들이 훨씬 강해진다!', 5);
+      game.radioSay(game.character.talkCycle);
     }
 
     _applyPhase(_phaseForTime(tc));
@@ -212,6 +213,7 @@ class MobSpawner extends Component with HasGameReference<SurvivorGame> {
       if (!game.reaperWarned && total >= SurvivorGame.kRunSeconds - 10) {
         game.reaperWarned = true;
         game.showBanner('☠ 무언가 무시무시한 것이 다가온다...', 5);
+        game.radioSay(game.character.talkReaper);
       }
       while (total >= SurvivorGame.kRunSeconds + reaperCount * 60) {
         _spawnReaper();
@@ -266,6 +268,7 @@ class MobSpawner extends Component with HasGameReference<SurvivorGame> {
       ));
     }
     game.showBanner('⚠ 포위당했다! 틈을 찾아 빠져나가라!', 4);
+    game.radioSay(game.character.talkEncircle);
   }
 
   /// 25:00 스테이지 보스 — 거대·고체력, 처치 시 확정 상자 + 하이퍼 해금
@@ -283,6 +286,7 @@ class MobSpawner extends Component with HasGameReference<SurvivorGame> {
       damageOverride: 55,
     ));
     game.showBanner('👹 스테이지 보스가 나타났다!', 5);
+    game.radioSay(game.character.talkBoss);
   }
 
   void _spawnReaper() {

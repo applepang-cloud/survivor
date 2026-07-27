@@ -4,6 +4,7 @@ import '../game/survivor_game.dart';
 import '../game/data.dart';
 import '../game/stats.dart';
 import '../ui/bitmap_font.dart';
+import '../ui/portrait.dart';
 
 class HudOverlay extends StatelessWidget {
   const HudOverlay({super.key, required this.game});
@@ -22,6 +23,54 @@ class HudOverlay extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           _mainHud(),
+          // 대원 무전 (좌측 중단, 자동 소멸)
+          Align(
+            alignment: const Alignment(-0.98, 0.1),
+            child: ValueListenableBuilder<String?>(
+              valueListenable: game.radio,
+              builder: (context, text, _) {
+                if (text == null) return const SizedBox.shrink();
+                final c = game.character;
+                return Container(
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.68),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: c.color.withValues(alpha: 0.8), width: 1.5),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CharacterPortrait(
+                          game: game, character: c, size: 44),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('📻 ${c.name}',
+                                style: TextStyle(
+                                    color: c.color,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 2),
+                            Text(text,
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    height: 1.35)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
           // 중앙 경고 배너 (사신 예고 / 포위 이벤트)
           Align(
             alignment: const Alignment(0, -0.35),
@@ -94,10 +143,14 @@ class HudOverlay extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 6),
-                  // 체력 바
+                  // 체력 바 (대원 이름 표시)
                   Row(
                     children: [
-                      const Text('❤️', style: TextStyle(fontSize: 16)),
+                      Text('${game.character.name} ❤️',
+                          style: TextStyle(
+                              color: game.character.color,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold)),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Stack(
