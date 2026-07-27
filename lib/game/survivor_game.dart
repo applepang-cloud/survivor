@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 
 import 'data.dart';
 import 'stats.dart';
+import 'meta.dart';
 import 'sprites.dart';
 import 'audio.dart';
 import 'player.dart';
@@ -55,11 +56,16 @@ class UpgradeOption {
 }
 
 class SurvivorGame extends FlameGame
-    with HasCollisionDetection, KeyboardEvents {
+    with HasCollisionDetection, KeyboardEvents, HasTimeScale {
   SurvivorGame()
       : super(
           camera: CameraComponent.withFixedResolution(width: 1280, height: 720),
         );
+
+  // ---- 런 타임라인 (VS 표준 30분) ----
+  static const double kRunSeconds = 1800; // 30:00 사신/클리어
+  static const double kStageBossAt = 1500; // 25:00 스테이지 보스
+  static const double kChestGateAt = 600; // 10:00 진화 상자 개방
 
   final math.Random rng = math.Random();
   final GameAssets gfx = GameAssets();
@@ -95,9 +101,24 @@ class SurvivorGame extends FlameGame
   List<String> chestLines = [];
   bool reaperWarned = false;
 
-  // 10분 생존 클리어 (VS: 제한시간 도달 = 스테이지 클리어)
+  // 30분 생존 클리어 (VS: 제한시간 도달 = 스테이지 클리어)
   bool cleared = false;
   static const int kClearBonusGold = 100;
+
+  // ---- 모드 (VS식 해금 토글, 중첩 가능) ----
+  MetaProgress meta = MetaProgress();
+  bool modeHyper = false; // 하이퍼: 적 강화 + 골드 보너스
+  bool modeTurbo = false; // 단축: 2배속 + 경험치 +25%
+  bool modeEndless = false; // 무한: 30분 루프, 사이클마다 강화
+  bool endlessJustUnlocked = false; // 클리어 화면 안내용
+  bool stageBossKilled = false;
+
+  /// 무한 모드 사이클 (0부터). 일반 모드는 항상 0.
+  int get endlessCycle =>
+      modeEndless ? (elapsed ~/ kRunSeconds).clamp(0, 99) : 0;
+
+  /// 웨이브 각본 기준 시간 (무한 모드는 30분마다 처음부터 반복)
+  double get cycleTime => modeEndless ? elapsed % kRunSeconds : elapsed;
 
   // ESC 일시정지 (원작 pauseManager)
   bool escPaused = false;
@@ -134,6 +155,7 @@ class SurvivorGame extends FlameGame
   Future<void> onLoad() async {
     await gfx.load(images);
     await audio.preload();
+    meta = await MetaProgress.load();
 
     background = Background();
     world.add(background);
@@ -204,6 +226,7 @@ class SurvivorGame extends FlameGame
     audio.stopBgm();
     if (joystick.isMounted) joystick.removeFromParent();
     isRunning = false;
+    timeScale = 1.0;
     overlays.add('menu');
     resumeEngine();
   }
@@ -278,8 +301,12 @@ class SurvivorGame extends FlameGame
     chestLines = [];
     reaperWarned = false;
     cleared = false;
+    stageBossKilled = false;
+    endlessJustUnlocked = false;
     banner.value = null;
     escPaused = false;
+    // 단축 모드: 전체 2배속 (모드 플래그는 메뉴에서 선택되어 유지됨)
+    timeScale = modeTurbo ? 2.0 : 1.0;
     pendingUpgrades = [];
     shieldAngle = 0.05;
     lastMoveDir = Vector2(1, 0);
@@ -293,7 +320,9 @@ class SurvivorGame extends FlameGame
     overlays.remove('chest');
     overlays.remove('pause');
     overlays.remove('clear');
-    if (!joystick.isMounted) camera.viewport.add(joystick);
+    // 재시작 안전: 직전 게임오버에서 제거가 큐에 남아 있어도 항상 새로 마운트
+    joystick.removeFromParent();
+    camera.viewport.add(joystick);
     isRunning = true;
     audio.startBgm();
     resumeEngine();
@@ -303,11 +332,18 @@ class SurvivorGame extends FlameGame
   void update(double dt) {
     super.update(dt);
     if (!isRunning) return;
-    elapsed += dt;
-    // 10:00 도달 = 스테이지 클리어 (VS: 제한시간 생존이 1차 목표)
-    if (!cleared && elapsed >= 600) {
+    // 주의: 이 오버라이드는 HasTimeScale 스케일링 이전의 dt를 받으므로
+    // 게임 시계는 직접 배속을 곱한다 (자식 컴포넌트는 믹스인이 스케일).
+    elapsed += dt * timeScale;
+    // 30:00 도달 = 스테이지 클리어 (무한 모드는 계속 루프)
+    if (!modeEndless && !cleared && elapsed >= kRunSeconds) {
       cleared = true;
       gold += kClearBonusGold;
+      if (!meta.endlessUnlocked) {
+        meta.endlessUnlocked = true;
+        endlessJustUnlocked = true;
+        meta.save();
+      }
       audio.levelup();
       isRunning = false;
       _updateHud();
@@ -332,9 +368,13 @@ class SurvivorGame extends FlameGame
     gameOver(); // cleared=true 라 승리 화면으로 표시됨
   }
 
-  /// 시간 경과 몹 체력 배율 (VS: 웨이브가 갈수록 강해짐) × 저주
+  /// 시간 경과 몹 체력 배율 (VS: 웨이브가 갈수록 강해짐)
+  /// × 저주 × 하이퍼(+50%) × 무한 사이클(+100%/사이클)
   double get waveHpMult =>
-      (1 + math.max(0, elapsed - 120) / 60 * 0.6) * stats.curseHp;
+      (1 + math.max(0, cycleTime - 120) / 60 * 0.35) *
+      stats.curseHp *
+      (modeHyper ? 1.5 : 1.0) *
+      (1 + endlessCycle);
 
   // ---- 조준 헬퍼 ----
   Mob? closestMob() {
@@ -359,6 +399,18 @@ class SurvivorGame extends FlameGame
   // ---- 콜백 ----
   void onMobKilled() => kills++;
 
+  /// 25분 스테이지 보스 처치 → 하이퍼 모드 해금 (VS 규칙)
+  void onStageBossKilled() {
+    stageBossKilled = true;
+    if (!meta.hyperUnlocked) {
+      meta.hyperUnlocked = true;
+      meta.save();
+      showBanner('🔓 하이퍼 모드 해금! (메뉴에서 선택)', 5);
+    } else {
+      showBanner('💥 스테이지 보스 격파!', 3);
+    }
+  }
+
   void showBanner(String text, [double seconds = 3.5]) {
     banner.value = text;
     add(TimerComponent(
@@ -371,7 +423,8 @@ class SurvivorGame extends FlameGame
   }
 
   void gainGold(int amount) {
-    gold += amount;
+    // 하이퍼 모드: 골드 +50% (VS 하이퍼의 골드 보너스)
+    gold += (amount * (modeHyper ? 1.5 : 1.0)).round();
     audio.pickup();
   }
 
@@ -391,12 +444,19 @@ class SurvivorGame extends FlameGame
 
   void gainExp(int amount) {
     if (_leveling) return;
-    exp += amount * stats.growth * stats.curseExp;
+    // 단축 모드: 경험치 +25% (VS 단축 모드 보너스)
+    exp += amount * stats.growth * stats.curseExp * (modeTurbo ? 1.25 : 1.0);
     if (exp >= maxExp) _levelUp();
   }
 
   void _levelUp() {
     level++;
+    // 해금: 한 판에서 레벨 30 도달 → 단축 모드
+    if (level >= 30 && !meta.turboUnlocked) {
+      meta.turboUnlocked = true;
+      meta.save();
+      showBanner('🔓 단축 모드 해금! (메뉴에서 선택)', 4);
+    }
     exp -= maxExp;
     maxExp *= 1.3;
     pendingUpgrades = _buildOptions();
@@ -558,6 +618,7 @@ class SurvivorGame extends FlameGame
 
   void gameOver() {
     isRunning = false;
+    timeScale = 1.0;
     audio.stopBgm();
     audio.gameover();
     finalTime = elapsed.floor();

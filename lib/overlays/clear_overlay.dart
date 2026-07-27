@@ -20,7 +20,7 @@ class ClearOverlay extends StatelessWidget {
             const SizedBox(height: 6),
             const BitmapText('STAGE CLEAR', scale: 2.6, color: Color(0xFFFFD54F)),
             const SizedBox(height: 10),
-            const Text('10분을 버텨냈다 — 생존 성공!',
+            const Text('30분을 버텨냈다 — 생존 성공!',
                 style: TextStyle(color: Colors.white, fontSize: 18)),
             const SizedBox(height: 4),
             Text('클리어 보너스 +${SurvivorGame.kClearBonusGold} 🪙',
@@ -28,6 +28,15 @@ class ClearOverlay extends StatelessWidget {
                     color: Color(0xFFFFD54F),
                     fontSize: 15,
                     fontWeight: FontWeight.bold)),
+            if (game.endlessJustUnlocked)
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: Text('🔓 무한 모드 해금! (메뉴에서 선택 가능)',
+                    style: TextStyle(
+                        color: Color(0xFF80DEEA),
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold)),
+              ),
             const SizedBox(height: 8),
             const Text('이제 사신은 사라지지 않고 1분마다 늘어난다.',
                 style: TextStyle(color: Colors.white54, fontSize: 13)),

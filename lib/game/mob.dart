@@ -19,6 +19,7 @@ class Mob extends SpriteAnimationComponent
     required this.itemDropRate,
     double hpMult = 1.0,
     this.isReaper = false,
+    this.isStageBoss = false, // 25분 보스: 거대·확정 상자·하이퍼 해금
     this.chargeDir, // 스웜: 고정 방향 직진 (추적 안 함)
     this.lifespan, // 수명(초) — 지나면 조용히 소멸 (스웜/포위 이벤트용)
     double? hpOverride,
@@ -26,7 +27,8 @@ class Mob extends SpriteAnimationComponent
     double? damageOverride,
   }) : super(
           position: position,
-          size: config.displaySize * (isReaper ? 1.3 : 1.0),
+          size: config.displaySize *
+              (isReaper ? 1.3 : (isStageBoss ? 1.8 : 1.0)),
           anchor: Anchor.center,
         ) {
     hp = hpOverride ?? config.hp * hpMult * (isReaper ? 99999 : 1);
@@ -39,6 +41,7 @@ class Mob extends SpriteAnimationComponent
   final double expDropRate;
   final double itemDropRate;
   final bool isReaper; // 사신: 사실상 불사, 즉사급 접촉 피해
+  final bool isStageBoss;
   final Vector2? chargeDir;
   double? lifespan;
   late double hp;
@@ -59,9 +62,12 @@ class Mob extends SpriteAnimationComponent
     if (isReaper) {
       paint.colorFilter =
           const ColorFilter.mode(_reaperColor, BlendMode.modulate);
+    } else if (isStageBoss) {
+      paint.colorFilter =
+          const ColorFilter.mode(Color(0xFFFFCC66), BlendMode.modulate);
     }
-    add(CircleHitbox(radius: config.hitRadius, anchor: Anchor.center)
-      ..position = size / 2);
+    final r = config.hitRadius * (isStageBoss ? 1.8 : 1.0);
+    add(CircleHitbox(radius: r, anchor: Anchor.center)..position = size / 2);
   }
 
   @override
@@ -182,10 +188,23 @@ class Mob extends SpriteAnimationComponent
           .add(ItemDrop(mobPosition: position, isBoss: config.key == 'mobBoss'));
     }
     final isBoss = config.key == 'mobBoss';
-    if (isBoss && !isReaper) {
-      // 보스: 보물상자(쿨다운) 또는 금화 다발 (VS: 보스는 보물상자 드랍)
-      // 진화 게이트: 4분 이후 보스부터 상자 개방 (VS의 10분 상자 게이트 압축)
-      if (game.elapsed >= 240 && game.elapsed - game.lastChestAt > 40) {
+    if (isStageBoss) {
+      // 25분 스테이지 보스: 확정 보물상자 + 금화 소나기 + 하이퍼 해금
+      game.lastChestAt = game.elapsed;
+      game.world.add(TreasureChest(position: position.clone()));
+      for (var i = 0; i < 10; i++) {
+        game.world.add(GoldCoin(
+            position: position +
+                Vector2(game.rng.nextDouble() * 160 - 80,
+                    game.rng.nextDouble() * 120 - 60),
+            value: 5));
+      }
+      game.onStageBossKilled();
+    } else if (isBoss && !isReaper) {
+      // 분보스: 보물상자(쿨다운) 또는 금화 다발 (VS: 보스는 보물상자 드랍)
+      // 진화 게이트: 10분 이후 보스부터 상자 개방 (VS의 10분 상자 게이트)
+      if (game.elapsed >= SurvivorGame.kChestGateAt &&
+          game.elapsed - game.lastChestAt > 40) {
         game.lastChestAt = game.elapsed;
         game.world.add(TreasureChest(position: position.clone()));
       } else {
