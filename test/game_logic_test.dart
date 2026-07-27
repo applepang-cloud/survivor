@@ -22,6 +22,7 @@ Future<SurvivorGame> _pumpGame(WidgetTester tester) async {
           'gameover': (_, _) => const SizedBox.shrink(),
           'chest': (_, _) => const SizedBox.shrink(),
           'pause': (_, _) => const SizedBox.shrink(),
+          'clear': (_, _) => const SizedBox.shrink(),
         },
       ),
     );
@@ -244,7 +245,8 @@ void main() {
     expect(game.world.children.whereType<TreasureChest>().length, 1);
   });
 
-  testWidgets('reaper warning at 9:50 and +1 reaper per minute',
+  testWidgets(
+      'clear at 10:00 (bonus gold) → continue → reapers stack per minute',
       (tester) async {
     final game = await _pumpGame(tester);
     game.startGame();
@@ -253,9 +255,23 @@ void main() {
     for (var i = 0; i < 40; i++) {
       await tester.pump(const Duration(milliseconds: 16));
     }
+    // 9:50 경고 → 10:00 클리어 팝업 (일시정지, 보너스 골드)
     expect(game.reaperWarned, isTrue);
+    expect(game.cleared, isTrue);
+    expect(game.isRunning, isFalse);
+    expect(game.overlays.isActive('clear'), isTrue);
+    expect(game.gold, greaterThanOrEqualTo(SurvivorGame.kClearBonusGold));
+    expect(game.spawner.reaperCount, 0); // 팝업 중엔 아직 사신 없음
+
+    // 무한 모드 계속 → 사신 등장
+    game.continueAfterClear();
+    expect(game.isRunning, isTrue);
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
     expect(game.spawner.reaperCount, 1);
 
+    // 1분 뒤 사신 추가
     game.elapsed = 659.5;
     for (var i = 0; i < 40; i++) {
       await tester.pump(const Duration(milliseconds: 16));
@@ -267,6 +283,26 @@ void main() {
             .where((m) => m.isReaper)
             .length,
         2);
+  });
+
+  testWidgets('finish run after clear shows victory result', (tester) async {
+    final game = await _pumpGame(tester);
+    game.startGame();
+    game.elapsed = 599.9;
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(game.overlays.isActive('clear'), isTrue);
+
+    game.finishRun();
+    expect(game.cleared, isTrue); // 게임오버 화면이 승리 스타일로 표시
+    expect(game.overlays.isActive('gameover'), isTrue);
+    expect(game.overlays.isActive('clear'), isFalse);
+    expect(game.finalTime, greaterThanOrEqualTo(600));
+
+    // 다시 시작하면 클리어 상태 초기화
+    game.startGame();
+    expect(game.cleared, isFalse);
   });
 
   testWidgets('curse skull trades danger for faster growth', (tester) async {

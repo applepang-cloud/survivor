@@ -14,17 +14,26 @@ class GameOverOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final won = game.cleared; // 10분 클리어 후 종료 = 승리
     return Container(
       color: Colors.black.withValues(alpha: 0.82),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('💀 GAME OVER',
+            Text(won ? '🏆 생존 성공!' : '💀 GAME OVER',
                 style: TextStyle(
-                    color: Color(0xFFEF5350),
+                    color: won
+                        ? const Color(0xFFFFD54F)
+                        : const Color(0xFFEF5350),
                     fontSize: 40,
                     fontWeight: FontWeight.w900)),
+            if (won)
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: Text('스테이지 클리어 — 사신에게서 버틴 기록까지가 최종 기록!',
+                    style: TextStyle(color: Colors.white70, fontSize: 14)),
+              ),
             const SizedBox(height: 20),
             _stat('⏱ 생존 시간', _fmt(game.finalTime)),
             _stat('⭐ 레벨', '${game.finalLevel}'),

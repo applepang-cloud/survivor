@@ -95,6 +95,10 @@ class SurvivorGame extends FlameGame
   List<String> chestLines = [];
   bool reaperWarned = false;
 
+  // 10분 생존 클리어 (VS: 제한시간 도달 = 스테이지 클리어)
+  bool cleared = false;
+  static const int kClearBonusGold = 100;
+
   // ESC 일시정지 (원작 pauseManager)
   bool escPaused = false;
 
@@ -169,10 +173,11 @@ class SurvivorGame extends FlameGame
     return KeyEventResult.handled;
   }
 
-  /// ESC 일시정지 토글 — 레벨업/상자/게임오버/메뉴 중에는 무시
+  /// ESC 일시정지 토글 — 레벨업/상자/클리어/게임오버/메뉴 중에는 무시
   void togglePause() {
     if (overlays.isActive('levelup') ||
         overlays.isActive('chest') ||
+        overlays.isActive('clear') ||
         overlays.isActive('gameover') ||
         overlays.isActive('menu')) {
       return;
@@ -272,6 +277,7 @@ class SurvivorGame extends FlameGame
     lastChestAt = -999;
     chestLines = [];
     reaperWarned = false;
+    cleared = false;
     banner.value = null;
     escPaused = false;
     pendingUpgrades = [];
@@ -286,6 +292,7 @@ class SurvivorGame extends FlameGame
     overlays.remove('levelup');
     overlays.remove('chest');
     overlays.remove('pause');
+    overlays.remove('clear');
     if (!joystick.isMounted) camera.viewport.add(joystick);
     isRunning = true;
     audio.startBgm();
@@ -297,7 +304,32 @@ class SurvivorGame extends FlameGame
     super.update(dt);
     if (!isRunning) return;
     elapsed += dt;
+    // 10:00 도달 = 스테이지 클리어 (VS: 제한시간 생존이 1차 목표)
+    if (!cleared && elapsed >= 600) {
+      cleared = true;
+      gold += kClearBonusGold;
+      audio.levelup();
+      isRunning = false;
+      _updateHud();
+      pauseEngine();
+      overlays.add('clear');
+      return;
+    }
     _updateHud();
+  }
+
+  /// 클리어 화면에서 "계속 도전" — 사신을 피하며 기록 도전 (무한 모드)
+  void continueAfterClear() {
+    overlays.remove('clear');
+    isRunning = true;
+    resumeEngine();
+    showBanner('☠ 사신이 몰려온다! 얼마나 버틸 수 있을까?', 4);
+  }
+
+  /// 클리어 화면에서 "여기서 승리" — 승리 결과 화면으로 종료
+  void finishRun() {
+    overlays.remove('clear');
+    gameOver(); // cleared=true 라 승리 화면으로 표시됨
   }
 
   /// 시간 경과 몹 체력 배율 (VS: 웨이브가 갈수록 강해짐) × 저주
