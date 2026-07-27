@@ -35,16 +35,24 @@ class _MenuOverlayState extends State<MenuOverlay> {
                       fontSize: 13,
                       fontWeight: FontWeight.bold)),
               const SizedBox(height: 6),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (var i = 0; i < kCharacters.length; i++) ...[
-                    if (i > 0) const SizedBox(width: 8),
-                    _charCard(i),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 580),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    for (var i = 0; i < kCharacters.length; i++) _charCard(i),
                   ],
-                ],
+                ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 5),
+              Text('${game.character.name} — ${game.character.title}',
+                  style: TextStyle(
+                      color: game.character.color,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
               // 모드 토글 (해금식, 중첩 가능)
               Wrap(
                 spacing: 8,
@@ -97,7 +105,8 @@ class _MenuOverlayState extends State<MenuOverlay> {
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14)),
                 ),
-                child: Text('${game.character.name}와 출격 🚀',
+                child: Text(
+                    '${game.character.name}${_wa(game.character.name)} 출격 🚀',
                     style: const TextStyle(
                         fontSize: 20, fontWeight: FontWeight.bold)),
               ),
@@ -129,39 +138,43 @@ class _MenuOverlayState extends State<MenuOverlay> {
     return GestureDetector(
       onTap: () => setState(() => game.selectCharacter(index)),
       child: Container(
-        width: 132,
-        padding: const EdgeInsets.all(8),
+        width: 108,
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: selected ? 0.72 : 0.45),
-          borderRadius: BorderRadius.circular(12),
+          color: Colors.black.withValues(alpha: selected ? 0.75 : 0.45),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: selected ? c.color : Colors.white24,
-            width: selected ? 2.5 : 1,
+            width: selected ? 2.2 : 1,
           ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CharacterPortrait(game: game, character: c, size: 56),
-            const SizedBox(height: 5),
+            CharacterPortrait(game: game, character: c, size: 40),
+            const SizedBox(height: 3),
             Text(c.name,
                 style: TextStyle(
                     color: selected ? c.color : Colors.white,
-                    fontSize: 15,
+                    fontSize: 13,
                     fontWeight: FontWeight.bold)),
-            Text(c.title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white54, fontSize: 9)),
-            const SizedBox(height: 3),
             Text(c.bonusDesc,
+                textAlign: TextAlign.center,
                 style: TextStyle(
                     color: c.color,
-                    fontSize: 10,
+                    fontSize: 8.5,
                     fontWeight: FontWeight.bold)),
           ],
         ),
       ),
     );
+  }
+
+  /// 받침 유무에 따른 조사 (와/과)
+  String _wa(String name) {
+    final code = name.codeUnitAt(name.length - 1);
+    if (code < 0xAC00 || code > 0xD7A3) return '와';
+    return (code - 0xAC00) % 28 == 0 ? '와' : '과';
   }
 
   String _modeDesc() {

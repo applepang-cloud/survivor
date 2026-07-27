@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:survivor/game/survivor_game.dart';
+import 'package:survivor/game/characters.dart';
 import 'package:survivor/game/data.dart';
 import 'package:survivor/game/stats.dart';
 import 'package:survivor/game/mob.dart';
@@ -33,6 +34,17 @@ Future<SurvivorGame> _pumpGame(WidgetTester tester) async {
   await tester.pump();
   await tester.pump();
   return game;
+}
+
+/// 스토리를 끝까지 진행 (선택지는 항상 첫 번째 선택)
+void playStory(SurvivorGame g) {
+  for (var i = 0; i < 30 && g.overlays.isActive('story'); i++) {
+    if (g.storyLines[g.storyIndex].choice != null) {
+      g.chooseStory(true);
+    } else {
+      g.advanceStory();
+    }
+  }
 }
 
 void main() {
@@ -374,11 +386,9 @@ void main() {
 
     game.finishRun();
     expect(game.cleared, isTrue);
-    // 결과 화면 전에 승리 대화가 먼저 나온다
+    // 결과 화면 전에 승리 대화(선택지 포함)가 먼저 나온다
     expect(game.overlays.isActive('story'), isTrue);
-    for (var i = 0; i < 10 && game.overlays.isActive('story'); i++) {
-      game.advanceStory();
-    }
+    playStory(game);
     expect(game.overlays.isActive('gameover'), isTrue); // 승리 스타일 결과
     expect(game.overlays.isActive('clear'), isFalse);
     expect(game.finalTime, greaterThanOrEqualTo(1800));
@@ -419,10 +429,69 @@ void main() {
     expect(game.isRunning, isFalse);
     expect(game.storyLines.length, game.character.intro.length);
 
-    for (var i = 0; i < 10 && game.overlays.isActive('story'); i++) {
+    playStory(game);
+    expect(game.isRunning, isTrue); // 대화 끝 → 자동 출격
+  });
+
+  testWidgets('binary choice expands into commander line + reaction',
+      (tester) async {
+    final game = await _pumpGame(tester);
+    game.beginSortie();
+
+    // 선택지 줄까지 진행
+    for (var i = 0;
+        i < 10 && game.storyLines[game.storyIndex].choice == null;
+        i++) {
       game.advanceStory();
     }
-    expect(game.isRunning, isTrue); // 대화 끝 → 자동 출격
+    final choice = game.storyLines[game.storyIndex].choice;
+    expect(choice, isNotNull);
+    game.advanceStory(); // 선택지에서는 탭 무시
+    expect(game.storyLines[game.storyIndex].choice, isNotNull);
+
+    final before = game.storyLines.length;
+    game.chooseStory(false); // 2번 선택
+    expect(game.storyLines.length, before + 1); // 선택지 → 대사 2줄로 치환
+    // 현재 줄 = 고른 대장 대사, 다음 줄 = 대원 반응
+    expect(game.storyLines[game.storyIndex].commander, isTrue);
+    expect(game.storyLines[game.storyIndex].text, choice!.b);
+    game.advanceStory();
+    expect(game.storyLines[game.storyIndex].commander, isFalse);
+    expect(game.storyLines[game.storyIndex].text, choice.reactB);
+
+    playStory(game);
+    expect(game.isRunning, isTrue);
+  });
+
+  testWidgets('roster has 10 unique characters with full dialogue',
+      (tester) async {
+    expect(kCharacters.length, 10);
+    expect(kCharacters.map((c) => c.id).toSet().length, 10);
+    for (final c in kCharacters) {
+      expect(c.intro, isNotEmpty);
+      expect(c.victory, isNotEmpty);
+      expect(c.defeat, isNotEmpty);
+      // 인트로/승리에 2지선다 1개씩
+      expect(c.intro.where((l) => l.choice != null).length, 1);
+      expect(c.victory.where((l) => l.choice != null).length, 1);
+      expect(c.talkReaper, isNotEmpty);
+    }
+  });
+
+  testWidgets('extended bonuses: 시엘 투사체/체력, 카야 방어/회복',
+      (tester) async {
+    final game = await _pumpGame(tester);
+
+    game.selectCharacter(9); // 시엘
+    game.startGame();
+    expect(game.stats.amount, 1);
+    expect(game.player.maxHp, closeTo(90, 1e-9));
+
+    game.selectCharacter(8); // 카야
+    await tester.pump(const Duration(milliseconds: 16));
+    game.startGame();
+    expect(game.stats.armor, closeTo(1, 1e-9));
+    expect(game.stats.recovery, closeTo(0.2, 1e-9));
   });
 
   testWidgets('character bonuses apply (유나 공격력 / 리제 체력)',
@@ -457,9 +526,7 @@ void main() {
     game.player.takeDamage(9999);
     expect(game.overlays.isActive('story'), isTrue);
     expect(game.storyLines.length, game.character.defeat.length);
-    for (var i = 0; i < 10 && game.overlays.isActive('story'); i++) {
-      game.advanceStory();
-    }
+    playStory(game);
     expect(game.overlays.isActive('gameover'), isTrue);
   });
 

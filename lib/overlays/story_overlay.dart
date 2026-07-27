@@ -17,9 +17,10 @@ class StoryOverlay extends StatelessWidget {
     final isCmd = line.commander;
     final nameColor = isCmd ? const Color(0xFFFFD54F) : c.color;
 
+    final hasChoice = line.choice != null;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: game.advanceStory,
+      onTap: hasChoice ? null : game.advanceStory,
       child: Container(
         color: Colors.black.withValues(alpha: 0.55),
         child: Column(
@@ -82,16 +83,23 @@ class StoryOverlay extends StatelessWidget {
                                 fontSize: 17,
                                 height: 1.5)),
                         const SizedBox(height: 6),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: Text(
-                            game.storyIndex < game.storyLines.length - 1
-                                ? '탭하여 계속 ▶'
-                                : '탭하여 시작 ▶▶',
-                            style: const TextStyle(
-                                color: Colors.white38, fontSize: 12),
+                        if (hasChoice) ...[
+                          // 2지선다 — 대장의 답변 선택
+                          _choiceBtn(line.choice!.a, () => game.chooseStory(true)),
+                          const SizedBox(height: 6),
+                          _choiceBtn(
+                              line.choice!.b, () => game.chooseStory(false)),
+                        ] else
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              game.storyIndex < game.storyLines.length - 1
+                                  ? '탭하여 계속 ▶'
+                                  : '탭하여 시작 ▶▶',
+                              style: const TextStyle(
+                                  color: Colors.white38, fontSize: 12),
+                            ),
                           ),
-                        ),
                       ],
                     ),
                   ),
@@ -100,6 +108,25 @@ class StoryOverlay extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _choiceBtn(String text, VoidCallback onTap) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFFFFD54F),
+          side: const BorderSide(color: Color(0xFFFFD54F)),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          alignment: Alignment.centerLeft,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+        child: Text('▸ $text',
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
       ),
     );
   }

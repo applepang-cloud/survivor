@@ -471,8 +471,9 @@ class SurvivorGame extends FlameGame
     overlays.add('story');
   }
 
-  /// 대화 진행 (탭) — 마지막 줄이면 종료 콜백
+  /// 대화 진행 (탭) — 마지막 줄이면 종료 콜백. 선택지 줄에서는 무시(버튼으로만).
   void advanceStory() {
+    if (storyLines.isNotEmpty && storyLines[storyIndex].choice != null) return;
     if (storyIndex < storyLines.length - 1) {
       storyIndex++;
       overlays.remove('story');
@@ -483,6 +484,21 @@ class SurvivorGame extends FlameGame
       _storyDone = null;
       cb?.call();
     }
+  }
+
+  /// 2지선다 — 고른 대장 대사 + 대원 반응으로 치환하고 이어간다
+  void chooseStory(bool first) {
+    final line = storyLines[storyIndex];
+    final c = line.choice;
+    if (c == null) return;
+    storyLines = [
+      ...storyLines.sublist(0, storyIndex),
+      StoryLine(true, first ? c.a : c.b),
+      StoryLine(false, first ? c.reactA : c.reactB),
+      ...storyLines.sublist(storyIndex + 1),
+    ];
+    overlays.remove('story');
+    overlays.add('story');
   }
 
   /// 메뉴 "출격" — 출격 전 대화 후 실제 게임 시작
@@ -653,6 +669,14 @@ class SurvivorGame extends FlameGame
     stats.might *= character.might;
     stats.moveMult *= character.move;
     stats.maxHpMult *= character.hpMult;
+    stats.cooldown = (stats.cooldown * character.cooldown).clamp(0.30, 1.0);
+    stats.area *= character.area;
+    stats.luck *= character.luck;
+    stats.growth *= character.growth;
+    stats.magnet += character.magnet;
+    stats.armor += character.armor;
+    stats.recovery += character.recovery;
+    stats.amount += character.amount;
     player.applyStats(stats);
     attack.refreshShields();
   }
