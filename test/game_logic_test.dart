@@ -481,6 +481,8 @@ void main() {
       expect(c.intro.where((l) => l.choice != null).length, 1);
       expect(c.victory.where((l) => l.choice != null).length, 1);
       expect(c.talkReaper, isNotEmpty);
+      // 일러스트 경로 (로컬 빌드에는 파일 존재, 공개 클론은 폴백)
+      expect(c.illust, 'assets/portraits/${c.id}.png');
     }
   });
 

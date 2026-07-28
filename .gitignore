@@ -44,3 +44,6 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 *.apk
+
+# 상용 일러스트(이매소녀) — 공개 repo에 올리지 않음 (로컬/APK 전용)
+assets/portraits/*.png

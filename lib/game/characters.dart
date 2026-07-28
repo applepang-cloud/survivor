@@ -34,8 +34,11 @@ class Character {
   final String name;
   final String title; // 한 줄 소개
   final String bonusDesc;
-  final Color tint; // 인게임 스프라이트/초상화 틴트
+  final Color tint; // 인게임 스프라이트 틴트
   final Color color; // UI 포인트 컬러
+
+  /// 캐릭터 일러스트 경로 (없거나 로드 실패 시 스프라이트 초상으로 폴백)
+  String get illust => 'assets/portraits/$id.png';
 
   // 캐릭터 보너스 (VS의 캐릭터별 특성) — 곱연산 배율 / 가산치
   final double might;

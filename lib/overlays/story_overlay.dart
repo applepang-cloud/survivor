@@ -54,7 +54,8 @@ class StoryOverlay extends StatelessWidget {
                           child: const Text('🎖️',
                               style: TextStyle(fontSize: 34)),
                         )
-                      : CharacterPortrait(game: game, character: c),
+                      : CharacterPortrait(
+                          game: game, character: c, size: 96, height: 132),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(

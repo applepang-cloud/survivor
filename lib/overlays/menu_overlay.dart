@@ -151,7 +151,7 @@ class _MenuOverlayState extends State<MenuOverlay> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CharacterPortrait(game: game, character: c, size: 40),
+            CharacterPortrait(game: game, character: c, size: 52, height: 64),
             const SizedBox(height: 3),
             Text(c.name,
                 style: TextStyle(
