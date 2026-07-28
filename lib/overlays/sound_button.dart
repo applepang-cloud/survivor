@@ -31,7 +31,11 @@ class _SoundButtonState extends State<SoundButton> {
               _round(
                 icon: on ? Icons.volume_up : Icons.volume_off,
                 onTap: () {
-                  setState(() => widget.game.audio.setEnabled(!on));
+                  setState(() {
+                    widget.game.audio.setEnabled(!on);
+                    widget.game.meta.muted = on; // 음소거 상태 기억
+                    widget.game.meta.save();
+                  });
                 },
               ),
             ],

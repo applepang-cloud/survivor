@@ -53,80 +53,81 @@ class MobSpawner extends Component with HasGameReference<SurvivorGame> {
   }
 
   /// 30분 각본. 경계는 _phaseForTime 과 쌍 (사이클 시간 기준).
+  /// 밸런스: VS 체감에 맞춰 스폰 밀도↑(gap ×0.7), 경험치·아이템 드랍↓.
   List<SpawnRule> _rulesForPhase(int phase) {
     switch (phase) {
       case 0: // 0:00~1:00 워밍업
-        return [SpawnRule('mob1', 0.45, 0.9, 0.01)];
+        return [SpawnRule('mob1', 0.32, 0.7, 0.004)];
       case 1: // 1:00~3:00 첫 분보스 + 램프업
         return [
-          SpawnRule('mob1', 0.30, 0.9, 0.01),
-          SpawnRule('mob2', 0.60, 0.8, 0.01),
-          SpawnRule('mobBoss', 9999, 0.5, 0.01, immediate: true),
+          SpawnRule('mob1', 0.21, 0.7, 0.004),
+          SpawnRule('mob2', 0.42, 0.6, 0.004),
+          SpawnRule('mobBoss', 9999, 0.5, 0.004, immediate: true),
         ];
       case 2: // 3:00~5:00
         return [
-          SpawnRule('mob2', 0.35, 0.8, 0.01),
-          SpawnRule('mob3', 0.70, 0.7, 0.01),
+          SpawnRule('mob2', 0.25, 0.6, 0.004),
+          SpawnRule('mob3', 0.50, 0.55, 0.004),
         ];
       case 3: // 5:00~5:40 ★1차 스파이크: 약졸 러시
         return [
-          SpawnRule('mob1', 0.07, 0.8, 0.01),
-          SpawnRule('mob2', 0.12, 0.7, 0.01),
+          SpawnRule('mob1', 0.05, 0.6, 0.004),
+          SpawnRule('mob2', 0.09, 0.55, 0.004),
         ];
       case 4: // 5:40~9:00 + 6:00 분보스
         return [
-          SpawnRule('mob3', 0.35, 0.7, 0.01),
-          SpawnRule('mob4', 0.70, 0.6, 0.01),
-          SpawnRule('mobBoss', 9999, 0.5, 0.01, immediate: true),
+          SpawnRule('mob3', 0.25, 0.55, 0.004),
+          SpawnRule('mob4', 0.50, 0.5, 0.004),
+          SpawnRule('mobBoss', 9999, 0.5, 0.004, immediate: true),
         ];
       case 5: // 9:00~10:00 ★커트라인: 튼튼몹 (VS 9분 거대박쥐)
-        return [SpawnRule('mob4', 0.45, 0.6, 0.01)];
+        return [SpawnRule('mob4', 0.32, 0.5, 0.004)];
       case 6: // 10:00~13:00 진화 개방 + 2분마다 분보스
         return [
-          SpawnRule('mob3', 0.30, 0.7, 0.01),
-          SpawnRule('mob4', 0.50, 0.6, 0.01),
-          SpawnRule('mobBoss', 120, 0.5, 0.01, immediate: true),
+          SpawnRule('mob3', 0.21, 0.55, 0.004),
+          SpawnRule('mob4', 0.35, 0.5, 0.004),
+          SpawnRule('mobBoss', 120, 0.5, 0.004, immediate: true),
         ];
       case 7: // 13:00~16:00 (13:00 포위 이벤트)
         return [
-          SpawnRule('mob4', 0.35, 0.6, 0.01),
-          SpawnRule('mob5', 0.55, 0.5, 0.01),
-          SpawnRule('mobBoss', 120, 0.5, 0.01, immediate: true),
+          SpawnRule('mob4', 0.25, 0.5, 0.004),
+          SpawnRule('mob5', 0.40, 0.45, 0.004),
+          SpawnRule('mobBoss', 120, 0.5, 0.004, immediate: true),
         ];
       case 8: // 16:00~20:00 ★소강: 느리고 튼튼 (빌드 완성 구간)
         return [
-          SpawnRule('mob4', 0.85, 0.6, 0.02),
-          SpawnRule('mob5', 1.10, 0.5, 0.02),
+          SpawnRule('mob4', 0.60, 0.5, 0.008),
+          SpawnRule('mob5', 0.80, 0.45, 0.008),
         ];
       case 9: // 20:00~24:00 재상승 (21:00 포위 이벤트)
         return [
-          SpawnRule('mob4', 0.40, 0.6, 0.01),
-          SpawnRule('mob5', 0.50, 0.5, 0.01),
-          SpawnRule('mobBoss', 120, 0.5, 0.01, immediate: true),
+          SpawnRule('mob4', 0.28, 0.5, 0.004),
+          SpawnRule('mob5', 0.35, 0.45, 0.004),
+          SpawnRule('mobBoss', 120, 0.5, 0.004, immediate: true),
         ];
       case 10: // 24:00~25:00 프리보스 램프
         return [
-          SpawnRule('mob3', 0.25, 0.7, 0.01),
-          SpawnRule('mob5', 0.30, 0.5, 0.01),
+          SpawnRule('mob3', 0.18, 0.55, 0.004),
+          SpawnRule('mob5', 0.21, 0.45, 0.004),
         ];
       case 11: // 25:00~28:00 스테이지 보스 페이즈
         return [
-          SpawnRule('mob4', 0.35, 0.6, 0.01),
-          SpawnRule('mob5', 0.40, 0.5, 0.01),
-          SpawnRule('mobBoss', 90, 0.5, 0.01, immediate: true),
+          SpawnRule('mob4', 0.25, 0.5, 0.004),
+          SpawnRule('mob5', 0.28, 0.45, 0.004),
+          SpawnRule('mobBoss', 90, 0.5, 0.004, immediate: true),
         ];
       case 12: // 28:00~30:00 ★최대 물량 (피날레)
         return [
-          SpawnRule('mob1', 0.12, 0.9, 0.01),
-          SpawnRule('mob3', 0.15, 0.7, 0.01),
-          SpawnRule('mob4', 0.18, 0.6, 0.01),
-          SpawnRule('mob5', 0.20, 0.5, 0.01),
-          SpawnRule('mobBoss', 45, 0.5, 0.01, immediate: true),
+          SpawnRule('mob1', 0.09, 0.7, 0.004),
+          SpawnRule('mob3', 0.11, 0.55, 0.004),
+          SpawnRule('mob4', 0.13, 0.5, 0.004),
+          SpawnRule('mob5', 0.14, 0.45, 0.004),
+          SpawnRule('mobBoss', 45, 0.5, 0.004, immediate: true),
         ];
       default: // 30:00~ (일반 모드 계속 도전 구간)
         return [
-          SpawnRule('mob5', 0.18, 0.5, 0.01),
-          SpawnRule('mobBoss', 30, 0.5, 0.01, immediate: true),
+          SpawnRule('mob5', 0.13, 0.45, 0.004),
+          SpawnRule('mobBoss', 30, 0.5, 0.004, immediate: true),
         ];
     }
   }
@@ -237,7 +238,7 @@ class MobSpawner extends Component with HasGameReference<SurvivorGame> {
         game.world.add(Mob(
           config: kMobs['mob1']!,
           position: origin + off,
-          expDropRate: 0.3,
+          expDropRate: 0.22,
           itemDropRate: 0,
           hpOverride: 1,
           speedOverride: 175 + rng.nextDouble() * 30,

@@ -20,7 +20,8 @@ class ExpUp extends SpriteComponent
   final MobConfig config;
   bool magnetized = false;
 
-  int get value => config.exp;
+  /// 획득 경험치 — 보석 병합 시 다른 보석의 값이 합산된다
+  late int value = config.exp;
 
   @override
   Future<void> onLoad() async {

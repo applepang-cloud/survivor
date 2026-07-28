@@ -125,12 +125,12 @@ class MobConfig {
 }
 
 final Map<String, MobConfig> kMobs = {
-  'mob1': MobConfig('mob1', 10, 5, 10, 2, 60, Vector2(64, 64)),
-  'mob2': MobConfig('mob2', 20, 10, 20, 2, 60, Vector2(64, 64)),
-  'mob3': MobConfig('mob3', 30, 20, 30, 2, 60, Vector2(64, 64)),
-  'mob4': MobConfig('mob4', 40, 25, 40, 2, 60, Vector2(64, 64)),
-  'mob5': MobConfig('mob5', 50, 33, 50, 2, 60, Vector2(64, 64)),
-  'mobBoss': MobConfig('mobBoss', 60, 50, 60, 3, 50, Vector2(160, 128)),
+  'mob1': MobConfig('mob1', 10, 5, 10, 2, 68, Vector2(64, 64)),
+  'mob2': MobConfig('mob2', 20, 10, 20, 2, 68, Vector2(64, 64)),
+  'mob3': MobConfig('mob3', 30, 20, 30, 2, 68, Vector2(64, 64)),
+  'mob4': MobConfig('mob4', 40, 25, 40, 2, 68, Vector2(64, 64)),
+  'mob5': MobConfig('mob5', 50, 33, 50, 2, 68, Vector2(64, 64)),
+  'mobBoss': MobConfig('mobBoss', 60, 50, 60, 3, 55, Vector2(160, 128)),
 };
 
 /// expUp 색상 인덱스 (green0 yellow1 pink2 blue3 red4 purple5)

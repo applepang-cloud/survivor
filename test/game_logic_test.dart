@@ -8,6 +8,8 @@ import 'package:survivor/game/characters.dart';
 import 'package:survivor/game/data.dart';
 import 'package:survivor/game/stats.dart';
 import 'package:survivor/game/mob.dart';
+import 'package:survivor/game/item.dart';
+import 'package:survivor/game/exp_up.dart';
 import 'package:survivor/game/fx.dart';
 
 Future<SurvivorGame> _pumpGame(WidgetTester tester) async {
@@ -90,7 +92,7 @@ void main() {
     expect(game.level, 2);
     expect(game.isRunning, isFalse);
     expect(game.pendingUpgrades.length, inInclusiveRange(3, 4));
-    expect(game.maxExp, closeTo(65, 0.001)); // 1.3배
+    expect(game.maxExp, closeTo(66, 0.001)); // 1.32배
   });
 
   testWidgets('applying any option resumes the game', (tester) async {
@@ -98,6 +100,8 @@ void main() {
     game.startGame();
     game.gainExp(60);
     game.applyUpgrade(game.pendingUpgrades.first);
+    // 레벨 2 (짝수) → 격전 대화 후 재개
+    if (game.overlays.isActive('story')) playStory(game);
     expect(game.isRunning, isTrue);
     expect(game.attack.owns(WeaponType.arrow), isTrue); // 시작 무기 유지
   });
@@ -121,6 +125,7 @@ void main() {
       game.skipUpgrade();
       expect(game.skipsLeft, 1);
     }
+    if (game.overlays.isActive('story')) playStory(game); // 격전 대화
     expect(game.isRunning, isTrue);
   });
 
@@ -197,6 +202,7 @@ void main() {
     game.togglePause();
     expect(game.escPaused, isFalse);
     game.applyUpgrade(game.pendingUpgrades.first);
+    if (game.overlays.isActive('story')) playStory(game); // 격전 대화 소화
 
     // 일시정지 → 메뉴로
     game.togglePause();
@@ -528,6 +534,64 @@ void main() {
     expect(game.storyLines.length, game.character.defeat.length);
     playStory(game);
     expect(game.overlays.isActive('gameover'), isTrue);
+  });
+
+  testWidgets('banter dialogue every 2nd level-up', (tester) async {
+    final game = await _pumpGame(tester);
+    game.startGame();
+
+    // 레벨 2 (짝수): 스킬 선택 후 격전 대화
+    game.gainExp(60);
+    game.applyUpgrade(game.pendingUpgrades.first);
+    expect(game.overlays.isActive('story'), isTrue);
+    expect(game.storyLines, game.character.banter[0]);
+    playStory(game);
+    expect(game.isRunning, isTrue);
+
+    // 레벨 3 (홀수): 대화 없이 바로 재개
+    game.gainExp(game.maxExp.ceil() + 1);
+    game.applyUpgrade(game.pendingUpgrades.first);
+    expect(game.overlays.isActive('story'), isFalse);
+    expect(game.isRunning, isTrue);
+
+    // 레벨 4 (짝수): 두 번째 격전 대화 (순환)
+    game.gainExp(game.maxExp.ceil() + 1);
+    game.applyUpgrade(game.pendingUpgrades.first);
+    expect(game.overlays.isActive('story'), isTrue);
+    expect(game.storyLines, game.character.banter[1]);
+    playStory(game);
+    expect(game.isRunning, isTrue);
+  });
+
+  testWidgets('allkill bomb gated before 8:00', (tester) async {
+    final game = await _pumpGame(tester);
+    game.startGame();
+    game.elapsed = 100; // 8분 전
+    for (var i = 0; i < 40; i++) {
+      game.world.add(ItemDrop(mobPosition: Vector2(300, 0), isBoss: false));
+    }
+    await tester.pump(const Duration(milliseconds: 16));
+    await tester.pump(const Duration(milliseconds: 16));
+    final drops = game.world.children.whereType<ItemDrop>().toList();
+    expect(drops.length, greaterThanOrEqualTo(30));
+    expect(drops.any((d) => d.type == ItemType.allkill), isFalse);
+  });
+
+  testWidgets('exp gems merge beyond cap', (tester) async {
+    final game = await _pumpGame(tester);
+    game.startGame();
+    for (var i = 0; i < 200; i++) {
+      game.dropExp(kMobs['mob1']!, Vector2(200.0 + i, 100));
+      if (i % 10 == 0) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+    }
+    await tester.pump(const Duration(milliseconds: 16));
+    await tester.pump(const Duration(milliseconds: 16));
+    final gems = game.world.children.whereType<ExpUp>().toList();
+    expect(gems.length, lessThanOrEqualTo(145)); // 한도 근처에서 병합
+    final total = gems.fold<int>(0, (s, g) => s + g.value);
+    expect(total, 200 * 10); // 경험치 총량은 보존
   });
 
   testWidgets('player dies on lethal damage', (tester) async {

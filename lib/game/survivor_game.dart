@@ -121,6 +121,7 @@ class SurvivorGame extends FlameGame
   VoidCallback? _storyDone;
   bool _evolutionAnnounced = false; // 10분 무전 1회
   bool lowHpSaid = false; // 위기 무전 1회
+  int _banterIdx = 0; // 격전 대화 순환
 
   /// 무한 모드 사이클 (0부터). 일반 모드는 항상 0.
   int get endlessCycle =>
@@ -170,6 +171,7 @@ class SurvivorGame extends FlameGame
     meta = await MetaProgress.load();
     character =
         kCharacters[meta.selectedChar.clamp(0, kCharacters.length - 1)];
+    audio.enabled = !meta.muted; // 음소거 기억
 
     background = Background();
     world.add(background);
@@ -324,6 +326,7 @@ class SurvivorGame extends FlameGame
     radio.value = null;
     _evolutionAnnounced = false;
     lowHpSaid = false;
+    _banterIdx = 0;
     escPaused = false;
     // 단축 모드: 전체 2배속 (모드 플래그는 메뉴에서 선택되어 유지됨)
     timeScale = modeTurbo ? 2.0 : 1.0;
@@ -369,6 +372,7 @@ class SurvivorGame extends FlameGame
         endlessJustUnlocked = true;
         meta.save();
       }
+      audio.stopBgm(); // 런 종료 — 음악 정지
       audio.levelup();
       isRunning = false;
       _updateHud();
@@ -383,6 +387,7 @@ class SurvivorGame extends FlameGame
   void continueAfterClear() {
     overlays.remove('clear');
     isRunning = true;
+    audio.startBgm();
     resumeEngine();
     showBanner('☠ 사신이 몰려온다! 얼마나 버틸 수 있을까?', 4);
   }
@@ -396,10 +401,32 @@ class SurvivorGame extends FlameGame
   /// 시간 경과 몹 체력 배율 (VS: 웨이브가 갈수록 강해짐)
   /// × 저주 × 하이퍼(+50%) × 무한 사이클(+100%/사이클)
   double get waveHpMult =>
-      (1 + math.max(0, cycleTime - 120) / 60 * 0.35) *
+      (1 + math.max(0, cycleTime - 120) / 60 * 0.45) *
       stats.curseHp *
       (modeHyper ? 1.5 : 1.0) *
       (1 + endlessCycle);
+
+  /// 경험치 보석 드랍 — 한도 초과 시 가장 가까운 보석에 합산 (VS의 보석 병합)
+  static const int kMaxGems = 130;
+  void dropExp(MobConfig config, Vector2 pos) {
+    final gems = world.children.whereType<ExpUp>().toList();
+    if (gems.length >= kMaxGems) {
+      ExpUp? best;
+      double bd = double.infinity;
+      for (final g in gems) {
+        final d = g.position.distanceToSquared(pos);
+        if (d < bd) {
+          bd = d;
+          best = g;
+        }
+      }
+      if (best != null) {
+        best.value += config.exp;
+        return;
+      }
+    }
+    world.add(ExpUp(config: config, mobPosition: pos));
+  }
 
   // ---- 조준 헬퍼 ----
   Mob? closestMob() {
@@ -468,6 +495,7 @@ class SurvivorGame extends FlameGame
     storyLines = lines;
     storyIndex = 0;
     _storyDone = onDone;
+    overlays.remove('story'); // 이미 열려 있어도 새 내용으로 리빌드
     overlays.add('story');
   }
 
@@ -551,7 +579,7 @@ class SurvivorGame extends FlameGame
       showBanner('🔓 단축 모드 해금! (메뉴에서 선택)', 4);
     }
     exp -= maxExp;
-    maxExp *= 1.3;
+    maxExp *= 1.32; // VS 체감에 맞춰 성장 곡선 소폭 상향
     pendingUpgrades = _buildOptions();
     _leveling = true;
     isRunning = false;
@@ -565,6 +593,18 @@ class SurvivorGame extends FlameGame
     pendingUpgrades = [];
     _leveling = false;
     overlays.remove('levelup');
+    // 레벨업(스킬 선택) 2회에 1번 — 대원과의 짧은 격전 대화
+    if (level % 2 == 0 && character.banter.isNotEmpty) {
+      final lines = character.banter[_banterIdx % character.banter.length];
+      _banterIdx++;
+      _updateHud();
+      startStory(lines, onDone: _resumeAfterLevelUp);
+      return;
+    }
+    _resumeAfterLevelUp();
+  }
+
+  void _resumeAfterLevelUp() {
     isRunning = true;
     _updateHud();
     resumeEngine();

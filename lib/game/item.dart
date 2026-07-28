@@ -24,7 +24,18 @@ class ItemDrop extends SpriteComponent
 
   @override
   Future<void> onLoad() async {
-    type = ItemType.values[game.rng.nextInt(4)];
+    // 가중치: 자석 30% / 빙결 25% / 물약 35% / 올킬 10%
+    // 올킬(전체 폭탄)은 8:00 이전엔 물약으로 대체 (초반 파워인플레 방지)
+    final r = game.rng.nextDouble();
+    var t = r < 0.30
+        ? ItemType.magnet
+        : r < 0.55
+            ? ItemType.freeze
+            : r < 0.90
+                ? ItemType.potion
+                : ItemType.allkill;
+    if (t == ItemType.allkill && game.elapsed < 480) t = ItemType.potion;
+    type = t;
     sprite = game.gfx.items[type.index];
     add(CircleHitbox());
   }

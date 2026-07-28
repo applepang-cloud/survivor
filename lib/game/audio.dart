@@ -39,8 +39,15 @@ class GameAudio {
 
   void stopBgm() {
     _bgmWanted = false;
+    // 확실하게: 일시정지 → 정지 → 플레이어 해제 (웹에서 stop이 안 먹는 경우 대비)
+    try {
+      FlameAudio.bgm.pause().catchError((_) {});
+    } catch (_) {}
     try {
       FlameAudio.bgm.stop().catchError((_) {});
+    } catch (_) {}
+    try {
+      FlameAudio.bgm.audioPlayer.release().catchError((_) {});
     } catch (_) {}
   }
 

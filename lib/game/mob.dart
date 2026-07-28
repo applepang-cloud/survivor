@@ -6,7 +6,6 @@ import 'package:flame/components.dart';
 import 'data.dart';
 import 'survivor_game.dart';
 import 'weapons.dart';
-import 'exp_up.dart';
 import 'item.dart';
 import 'fx.dart';
 
@@ -181,7 +180,7 @@ class Mob extends SpriteAnimationComponent
     _dead = true;
     game.world.add(Explosion(position));
     if (game.rng.nextDouble() < expDropRate) {
-      game.world.add(ExpUp(config: config, mobPosition: position));
+      game.dropExp(config, position); // 한도 초과 시 근처 보석에 병합
     }
     if (game.rng.nextDouble() < itemDropRate) {
       game.world

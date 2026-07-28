@@ -55,6 +55,9 @@ class Character {
   final List<StoryLine> victory;
   final List<StoryLine> defeat;
 
+  /// 격전 중 짧은 대화 — 레벨업(스킬 선택) 2회에 1번 순환 재생
+  final List<List<StoryLine>> banter;
+
   // 전투 중 무전 한마디
   final String talkFirstLevel;
   final String talkEvolution;
@@ -85,6 +88,7 @@ class Character {
     required this.intro,
     required this.victory,
     required this.defeat,
+    this.banter = const [],
     required this.talkFirstLevel,
     required this.talkEvolution,
     required this.talkEncircle,
@@ -131,6 +135,24 @@ const List<Character> kCharacters = [
       StoryLine(true, '충분히 잘했다. 돌아와서 쉬어라, 세라.'),
       StoryLine(false, '다음엔… 꼭 새벽까지 버틸게요.'),
     ],
+    banter: [
+      [
+        StoryLine(false, '대장, 방금 그거 봤어요?! 저 좀 멋있었죠?'),
+        StoryLine(true, '봤다. 다음 것도 기대하지.'),
+      ],
+      [
+        StoryLine(false, '이 기세면 새벽까지 금방이에요!'),
+        StoryLine(true, '방심은 금물이다, 세라.'),
+      ],
+      [
+        StoryLine(false, '히히, 점점 강해지는 게 느껴져요!'),
+        StoryLine(true, '그 웃음이 부대의 사기다.'),
+      ],
+      [
+        StoryLine(false, '대장! 끝나면 라면 먹으러 가요!'),
+        StoryLine(true, '…살아서 돌아오면.'),
+      ],
+    ],
     talkFirstLevel: '벌써 몸이 가벼워졌어요! 다음 장비도 골라 주세요, 대장!',
     talkEvolution: '대장! 상자에서 이상한 빛이…! 이게 진화라는 거죠?!',
     talkEncircle: '우와, 완전 포위됐는데요?! …뚫고 나갈게요!',
@@ -173,6 +195,24 @@ const List<Character> kCharacters = [
       StoryLine(false, '…작전 실패. 죄송합니다, 대장님.'),
       StoryLine(true, '데이터는 남았다. 다음엔 이긴다.'),
       StoryLine(false, '…네. 반드시.'),
+    ],
+    banter: [
+      [
+        StoryLine(false, '…강화 완료. 명중률이 오르고 있습니다.'),
+        StoryLine(true, '숫자가 널 따라오는군.'),
+      ],
+      [
+        StoryLine(false, '탄도 계산, 갱신했습니다.'),
+        StoryLine(true, '믿고 맡기지.'),
+      ],
+      [
+        StoryLine(false, '…집중력, 유지 중입니다.'),
+        StoryLine(true, '너무 조이지 마라. 어깨에 힘 빼고.'),
+      ],
+      [
+        StoryLine(false, '이 정도 화력이면… 충분합니다.'),
+        StoryLine(true, '네 「충분」은 늘 과잉이었지.'),
+      ],
     ],
     talkFirstLevel: '장비 강화 확인. …선택은 대장님께 맡기겠습니다.',
     talkEvolution: '10분 경과. 진화 병기, 사용 허가를 요청합니다.',
@@ -217,6 +257,24 @@ const List<Character> kCharacters = [
       StoryLine(true, '네 방패 덕에 모두 무사하다. 자랑스럽다.'),
       StoryLine(false, '…다음엔, 더 단단해질게요.'),
     ],
+    banter: [
+      [
+        StoryLine(false, '바, 방패가 점점 가벼워져요…!'),
+        StoryLine(true, '네가 강해진 거다, 리제.'),
+      ],
+      [
+        StoryLine(false, '대장님, 저… 잘하고 있나요?'),
+        StoryLine(true, '누구보다.'),
+      ],
+      [
+        StoryLine(false, '심장이 두근두근해요… 무서워서가 아니라…!'),
+        StoryLine(true, '그건 성장통이다.'),
+      ],
+      [
+        StoryLine(false, '다, 달아나지 않았어요, 저!'),
+        StoryLine(true, '알고 있다. 계속 그거면 된다.'),
+      ],
+    ],
     talkFirstLevel: '조금… 강해진 것 같아요. 대장님, 다음은 뭘 고를까요…?',
     talkEvolution: '저 상자… 열어도 될까요? 굉장한 힘이 느껴져요…',
     talkEncircle: '히익, 둘러싸였어요…! 대장님, 어느 쪽으로 가면…?!',
@@ -259,6 +317,24 @@ const List<Character> kCharacters = [
       StoryLine(false, '미안… 정비가 부족했나 봐…'),
       StoryLine(true, '장비 탓이 아니다. 다음 판을 준비하자.'),
       StoryLine(false, '…응! 나사 두 배로 조여 올게!'),
+    ],
+    banter: [
+      [
+        StoryLine(false, '부품 맞물리는 소리 들려? 완벽해!'),
+        StoryLine(true, '정비반장 귀는 못 속이는군.'),
+      ],
+      [
+        StoryLine(false, '화력 출력 20% 상승~!'),
+        StoryLine(true, '너무 올리다 터뜨리지는 마라.'),
+      ],
+      [
+        StoryLine(false, '대장 무기도 하나 만들어줄까?'),
+        StoryLine(true, '…전장 끝나고 부탁하지.'),
+      ],
+      [
+        StoryLine(false, '기름칠한 보람이 있네!'),
+        StoryLine(true, '네 손이 부대의 심장이다.'),
+      ],
     ],
     talkFirstLevel: '레벨업! 나사 하나 더 조였다~ 다음 부품 골라줘, 대장!',
     talkEvolution: '10분 경과! 진화 파츠 장착 가능! 크크, 이거 물건이야!',
@@ -303,6 +379,24 @@ const List<Character> kCharacters = [
       StoryLine(true, '네 탓이 아니다. 달이 나빴을 뿐이다.'),
       StoryLine(false, '…다음 보름에는, 반드시.'),
     ],
+    banter: [
+      [
+        StoryLine(false, '가호가 한 겹 더해졌사옵니다.'),
+        StoryLine(true, '든든하군.'),
+      ],
+      [
+        StoryLine(false, '칼끝이 맑아졌사옵니다…'),
+        StoryLine(true, '네 마음처럼.'),
+      ],
+      [
+        StoryLine(false, '방금, 대장님의 무운을 빌었사옵니다.'),
+        StoryLine(true, '…고맙다. 효과가 있는 것 같군.'),
+      ],
+      [
+        StoryLine(false, '부정이 조금씩 옅어지고 있사옵니다.'),
+        StoryLine(true, '새벽이 가까워진다는 뜻이지.'),
+      ],
+    ],
     talkFirstLevel: '힘이 맑아졌사옵니다. 다음 가호를 골라주소서.',
     talkEvolution: '봉인된 상자가 눈을 떴사옵니다…!',
     talkEncircle: '사방이 부정한 기운…! 결계를 펼치겠나이다!',
@@ -345,6 +439,24 @@ const List<Character> kCharacters = [
       StoryLine(false, '으엥… 보물 코앞에서 넘어졌어…'),
       StoryLine(true, '목숨이 제일 큰 보물이다. 무사해서 다행이다.'),
       StoryLine(false, '…흑. 다음엔 꼭 들고 돌아올게.'),
+    ],
+    banter: [
+      [
+        StoryLine(false, '이거 완전 레어템 각이야!'),
+        StoryLine(true, '욕심은 반만 부려라.'),
+      ],
+      [
+        StoryLine(false, '대장, 나 방금 3연속 회피! 봤지?!'),
+        StoryLine(true, '운도 실력이다. 인정하지.'),
+      ],
+      [
+        StoryLine(false, '이 근처에서 금화 냄새가 나~'),
+        StoryLine(true, '…냄새로 아는 게 더 신기하다.'),
+      ],
+      [
+        StoryLine(false, '끝나면 전리품 정산하자!'),
+        StoryLine(true, '네 몫이 제일 클 거다.'),
+      ],
     ],
     talkFirstLevel: '레벨업~! 럭키! 다음 것도 좋은 걸로 골라줘, 대장!',
     talkEvolution: '저 상자, 완전 명품 냄새 나!',
@@ -389,6 +501,24 @@ const List<Character> kCharacters = [
       StoryLine(true, '실패도 데이터다. 잘 싸웠다.'),
       StoryLine(false, '…네. 다음 가설은, 더 완벽하게.'),
     ],
+    banter: [
+      [
+        StoryLine(false, '출력 상승 곡선, 이론치와 일치!'),
+        StoryLine(true, '네 계산대로군.'),
+      ],
+      [
+        StoryLine(false, '새로운 변수 확보! 흥미로워요!'),
+        StoryLine(true, '전장에서 눈이 반짝이는 건 너뿐이다.'),
+      ],
+      [
+        StoryLine(false, '기록 중… 대장님 지휘도 데이터에 넣을게요.'),
+        StoryLine(true, '…좋은 쪽으로 부탁하지.'),
+      ],
+      [
+        StoryLine(false, '가설이 점점 확신이 되어가요!'),
+        StoryLine(true, '결론은 생존으로 증명해라.'),
+      ],
+    ],
     talkFirstLevel: '성장 곡선 정상! 다음 변수를 선택해 주세요!',
     talkEvolution: '진화 조건 충족 확인! 이론대로예요!',
     talkEncircle: '포위 대형… 탈출 벡터 계산 중!',
@@ -431,6 +561,24 @@ const List<Character> kCharacters = [
       StoryLine(false, '…계산이 어긋났어. …졸려서가 아니야.'),
       StoryLine(true, '알고 있다. 다음 수를 두자.'),
       StoryLine(false, '…응. 이번엔 커피 마실게.'),
+    ],
+    banter: [
+      [
+        StoryLine(false, '…예정보다 3% 빨라. 좋은 페이스야.'),
+        StoryLine(true, '네 계산은 여전하군.'),
+      ],
+      [
+        StoryLine(false, '…하암. 아직 안 졸려. 진짜야.'),
+        StoryLine(true, '그 말, 오늘만 세 번째다.'),
+      ],
+      [
+        StoryLine(false, '…대장 목소리 들으면, 잠이 깨.'),
+        StoryLine(true, '…그럼 계속 말해주지.'),
+      ],
+      [
+        StoryLine(false, '…다음 웨이브, 서쪽이 얇아.'),
+        StoryLine(true, '접수했다.'),
+      ],
     ],
     talkFirstLevel: '…강해졌네. 다음 선택은, 대장 취향대로.',
     talkEvolution: '…10분. 예정대로 상자가 열려.',
@@ -476,6 +624,24 @@ const List<Character> kCharacters = [
       StoryLine(true, '위약금은 없다. 네가 무사하면 됐다.'),
       StoryLine(false, '……정말, 이상한 고용주다.'),
     ],
+    banter: [
+      [
+        StoryLine(false, '…무기가 손에 익는군.'),
+        StoryLine(true, '네 실력이다.'),
+      ],
+      [
+        StoryLine(false, '…고용주. 다음 지시는?'),
+        StoryLine(true, '지금처럼. 살아있어라.'),
+      ],
+      [
+        StoryLine(false, '…이 부대, 나쁘지 않다.'),
+        StoryLine(true, '너답지 않게 솔직하군.'),
+      ],
+      [
+        StoryLine(false, '…등 뒤는 맡겨라.'),
+        StoryLine(true, '믿고 있다.'),
+      ],
+    ],
     talkFirstLevel: '장비 갱신. …나쁘지 않군.',
     talkEvolution: '새 무기인가. …써주지.',
     talkEncircle: '포위 따위, 몇 번째인지 기억도 안 난다.',
@@ -519,6 +685,24 @@ const List<Character> kCharacters = [
       StoryLine(false, '마력이… 바닥났어… 「언니, 괜찮아…?」'),
       StoryLine(true, '둘 다 잘 버텼다. 돌아가자.'),
       StoryLine(false, '…응. 「다음엔 세 배로 쏠 거야…」'),
+    ],
+    banter: [
+      [
+        StoryLine(false, '마력 충전 완료! 「가득가득~」'),
+        StoryLine(true, '둘 다 준비됐군.'),
+      ],
+      [
+        StoryLine(false, '「언니보다 내가 더 쐈어!」 …아니야, 내가 더 쐈어.'),
+        StoryLine(true, '…둘 다 잘했다.'),
+      ],
+      [
+        StoryLine(false, '대장, 우리 호흡 좋지? 「척척!」'),
+        StoryLine(true, '셋이서 한 팀이지.'),
+      ],
+      [
+        StoryLine(false, '「끝나면 간식!」 …나도 찬성이야.'),
+        StoryLine(true, '…협상 성립이다.'),
+      ],
     ],
     talkFirstLevel: '새 마력 회로 개방! 「다음엔 어떤 거 고를 거야?」',
     talkEvolution: '금단의 상자가 공명하고 있어… 「열어보자!」',
